@@ -50,6 +50,14 @@ const ALL_BONES = Object.keys(SKELETON);
 // 腕を上げた姿勢では手のひらが外を向くため、強いカールは「反り返り」に見える。控えめに。
 const FINGER_CURL = { Proximal: 14, Intermediate: 17, Distal: 10 };
 
+// VRM 1.0 プリセット表情 (VRMC_vrm_animation の expressions.preset で使える名前)
+export const EXPRESSION_PRESETS = [
+  'happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral',
+  'aa', 'ih', 'ou', 'ee', 'oh',
+  'blink', 'blinkLeft', 'blinkRight',
+  'lookUp', 'lookDown', 'lookLeft', 'lookRight',
+];
+
 const eulerQuat = (() => {
   const e = new THREE.Euler();
   const q = new THREE.Quaternion();
@@ -71,7 +79,8 @@ const eulerQuat = (() => {
  *   duration: number,          // 秒
  *   loop: boolean,
  *   tracks: { boneName: [{ t, r: [degX, degY, degZ] }, ...] },
- *   hips:   [{ t, p: [dx, dy, dz] }, ...]   // レスト位置からのオフセット(省略可)
+ *   hips:   [{ t, p: [dx, dy, dz] }, ...],  // レスト位置からのオフセット(省略可)
+ *   expressions: { happy: [{ t, w }, ...], ... }  // 表情ウェイト 0〜1 (省略可)
  * }
  * @returns {ArrayBuffer} GLB 形式の .vrma バイナリ
  */
@@ -183,6 +192,28 @@ export function buildVRMA(spec) {
     });
   }
 
+  // 表情トラック: VRMA 仕様では表情ごとのダミーノードの translation.x にウェイトを載せる
+  const expressionsUsed = {};
+  for (const [name, keys] of Object.entries(spec.expressions ?? {})) {
+    if (!EXPRESSION_PRESETS.includes(name) || !keys?.length) continue;
+    const nodeIdx = nodes.length;
+    nodes.push({ name: `E_${name}`, translation: [0, 0, 0] });
+    expressionsUsed[name] = { node: nodeIdx };
+    const sorted = [...keys].sort((a, b) => a.t - b.t);
+    const times = new Float32Array(sorted.map((k) => k.t));
+    const values = new Float32Array(sorted.length * 3);
+    sorted.forEach((k, i) =>
+      values.set([Math.max(0, Math.min(1, Number(k.w) || 0)), 0, 0], i * 3)
+    );
+    const input = addAccessor(times, 'SCALAR', true);
+    const output = addAccessor(values, 'VEC3', false);
+    samplers.push({ input, output, interpolation: 'LINEAR' });
+    channels.push({
+      sampler: samplers.length - 1,
+      target: { node: nodeIdx, path: 'translation' },
+    });
+  }
+
   if (channels.length === 0) {
     throw new Error('モーションにトラックがありません');
   }
@@ -197,6 +228,9 @@ export function buildVRMA(spec) {
       VRMC_vrm_animation: {
         specVersion: '1.0',
         humanoid: { humanBones },
+        ...(Object.keys(expressionsUsed).length
+          ? { expressions: { preset: expressionsUsed } }
+          : {}),
       },
     },
     scene: 0,

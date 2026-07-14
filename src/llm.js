@@ -1,5 +1,5 @@
 // llm.js — OpenAI API でテキストからモーション spec を生成する
-import { BONE_NAMES } from './vrmaBuilder.js';
+import { BONE_NAMES, EXPRESSION_PRESETS } from './vrmaBuilder.js';
 
 export const DEFAULT_OPENAI_MODEL = 'gpt-5.6-sol';
 
@@ -30,9 +30,17 @@ ${BONE_NAMES.join(', ')}
   "duration": 秒数,
   "loop": true/false,
   "tracks": { "ボーン名": [ { "t": 秒, "r": [X度, Y度, Z度] }, ... ], ... },
-  "hips": [ { "t": 秒, "p": [dx, dy, dz] }, ... ]
+  "hips": [ { "t": 秒, "p": [dx, dy, dz] }, ... ],
+  "expressions": { "表情名": [ { "t": 秒, "w": 0〜1 }, ... ], ... }
 }
 hips は腰位置のオフセット(メートル)。不要なら空配列 [] にする。
+
+# 表情 (expressions) の使い方
+- 使える表情: happy, angry, sad, relaxed, surprised, blink (まばたき), aa (口を開く)
+- w はウェイト 0〜1。感情表情は 0.4〜1.0、変化には 0.2〜0.4 秒かける。
+- モーションの感情に合った表情を必ず入れる (喜ぶ→happy、落ち込む→sad、驚く→surprised 等)。
+- まばたき (blink) を 2〜4 秒おきに入れると生きて見える: 0→1→0 を約 0.15 秒で。
+- 表情に対応していないモデルでは自動的に無視されるので、遠慮なく使ってよい。
 
 # ルール
 - 常に腕を下ろした自然な姿勢から始める (leftUpperArm Z=-70, rightUpperArm Z=+70 を t=0 に置く)。
@@ -76,6 +84,19 @@ hips は腰位置のオフセット(メートル)。不要なら空配列 [] に
   それ以上は「上腕を上げる」のではなく「肘の曲げ」で調整する。
 - 拍手: 両腕を体の前で構え (upperArm Y ±50〜60 前後 + 少し下げ)、
   肘から先を小さく開閉する。腕全体を大きく開閉しない。
+
+# 脚の解剖学メモ
+- 膝 (lowerLeg) は蝶番関節。使うのは X の 0〜130 (後ろに曲げる) のみ。
+  負の値 (逆関節) は絶対禁止。Y/Z もほぼ使わない。
+- 太もも (upperLeg): X 負で前に上げる (キック・足上げ・歩き)、X 正で後ろへ。
+  開脚・ステップの横方向は Z を使う。
+- 足踏み・歩く: 左右の upperLeg X を交互に (-30 ⇔ +10 程度)、膝も連動して曲げ、
+  腕を逆位相で軽く振る。hips を歩調に合わせて小さく上下させる。
+- 足首 (foot): つま先を伸ばす = X 正 (+20〜40、キックやつま先立ち)、反らす = X 負 (-20 程度)。
+- キック: 溜め (upperLeg X +10 と膝曲げ) → 素早く蹴り出す (upperLeg X -60〜-90、膝を伸ばす)
+  → 戻す。蹴り足と逆側に軽く体重移動 (hips の p.x) を入れるとリアル。
+- 膝を曲げる姿勢 (しゃがむ・溜め・着地) では必ず hips の p.y を下げる。
+  下げないと足が地面から浮いて見える。目安: 浅い曲げ -0.05〜-0.1 / 深いしゃがみ -0.2〜-0.35。
 
 # 設計の手順 (重要)
 1. まず、その動きを実際の人間がどうやるかを頭の中で再生する。
@@ -352,6 +373,14 @@ function validateSpec(spec) {
         t: k.t,
         r: k.r.map((v) => Math.max(-limit, Math.min(limit, Number(v) || 0))),
       }));
+    // 膝は蝶番関節: 逆関節 (X 負) と横曲げを防ぐ
+    if (bone === 'leftLowerLeg' || bone === 'rightLowerLeg') {
+      for (const k of spec.tracks[bone]) {
+        k.r[0] = Math.max(-3, Math.min(140, k.r[0]));
+        k.r[1] = Math.max(-15, Math.min(15, k.r[1]));
+        k.r[2] = Math.max(-15, Math.min(15, k.r[2]));
+      }
+    }
     if (spec.tracks[bone].length === 0) delete spec.tracks[bone];
   }
   if (Object.keys(spec.tracks).length === 0 && !spec.hips?.length) {
@@ -376,5 +405,21 @@ function validateSpec(spec) {
     spec.hips = spec.hips.filter(
       (k) => typeof k?.t === 'number' && Array.isArray(k.p) && k.p.length === 3
     );
+  }
+  // 表情の検証: 未知の表情名を除去し、ウェイトを 0〜1 にクランプ
+  if (spec.expressions && typeof spec.expressions === 'object') {
+    for (const [name, keys] of Object.entries(spec.expressions)) {
+      if (!EXPRESSION_PRESETS.includes(name) || !Array.isArray(keys)) {
+        delete spec.expressions[name];
+        continue;
+      }
+      spec.expressions[name] = keys
+        .filter((k) => typeof k?.t === 'number' && typeof k?.w === 'number' && k.t <= MAX_DURATION)
+        .map((k) => ({ t: k.t, w: Math.max(0, Math.min(1, k.w)) }));
+      if (spec.expressions[name].length === 0) delete spec.expressions[name];
+    }
+    if (Object.keys(spec.expressions).length === 0) delete spec.expressions;
+  } else {
+    delete spec.expressions;
   }
 }

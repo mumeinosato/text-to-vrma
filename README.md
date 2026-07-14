@@ -1,4 +1,4 @@
-# Text-To-VRMA — テキストからVRMアニメーション生成
+# Text-To-VRMA — VRM特化型Text-To-Motionツール
 
 テキストを入力すると、OpenAI API がキーフレームを設計し、
 **VRMA (VRM Animation / `.vrma`)** ファイルをブラウザ内で生成して、
@@ -92,6 +92,8 @@ LLM が生成する中間表現です:
 ```
 
 - `r` = T ポーズからのオイラー角 [X, Y, Z] (度) / `p` = 腰位置オフセット (m)
+- `expressions` で VRM プリセット表情 (happy / angry / sad / surprised / blink 等) の
+  ウェイト (0〜1) もアニメーションできます
 - 座標規約: モデルは +Z 正面 / +X が左手側 (VRM 1.0 準拠)
 
 ## 開発者
