@@ -94,7 +94,8 @@ LLM が生成する中間表現です:
   使用モデルとモーションの長さによって変動)
 - OpenAI の [データ共有プログラム (Complimentary daily tokens)](https://help.openai.com/en/articles/10306912-sharing-feedback-evaluation-and-fine-tuning-data-and-api-inputs-and-outputs-with-openai)
   を有効にすると、1日あたりの無料トークン枠内で**無料で試せます**
-  (API の入出力が OpenAI のモデル学習に共有される点に注意。対象アカウント・地域の条件あり)
+  (API の入出力が OpenAI のモデル学習に共有される点に注意。対象アカウント・地域の条件あり。
+  本プログラムは OpenAI 側の都合で変更・終了される可能性があります)
 - 生成される `.vrma` の利用は各自の責任で行ってください
 
 ## 開発者
