@@ -18,9 +18,15 @@ const vrmName = $('vrmName');
 const viewerWrap = $('viewerWrap');
 const historyEl = $('history');
 
-let lastVRMA = null; // { buffer: ArrayBuffer, name: string }
-const history = []; // [{ name, buffer, loop, duration, text }]
+let lastVRMA = null; // { spec, name }
+const history = []; // [{ name, spec, buffer, loop, duration, text }]
 const MAX_HISTORY = 20;
+
+// エクスポート用: 表情を除いたボーンモーションのみの VRMA を生成する
+function buildMotionOnlyVRMA(spec) {
+  const { expressions, ...motionOnly } = spec;
+  return buildVRMA(motionOnly);
+}
 
 function setStatus(msg, kind = '') {
   statusEl.textContent = msg;
@@ -52,11 +58,11 @@ async function init() {
   setStatus('VRMモデルが見つかりません。\n「VRMファイルを開く」から .vrm を読み込んでください。', 'err');
 }
 
-// --- モーション再生共通処理 ---
+// --- モーション再生共通処理 (プレビューは表情込み) ---
 async function playSpec(spec, { silent = false } = {}) {
   const buffer = buildVRMA(spec);
   await viewer.playVRMA(buffer, spec.loop ?? true);
-  lastVRMA = { buffer, name: spec.name || 'motion' };
+  lastVRMA = { spec, name: spec.name || 'motion' };
   exportBtn.disabled = false;
   if (!silent) {
     setStatus(
@@ -70,7 +76,9 @@ async function playSpec(spec, { silent = false } = {}) {
 
 // --- 生成履歴 ---
 function downloadVRMA(item) {
-  const blob = new Blob([item.buffer], { type: 'model/gltf-binary' });
+  // 書き出しはボーンモーションのみ (表情はプレビュー演出)
+  const buffer = buildMotionOnlyVRMA(item.spec);
+  const blob = new Blob([buffer], { type: 'model/gltf-binary' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `${item.name}.vrma`;
@@ -81,7 +89,7 @@ function downloadVRMA(item) {
 async function playHistoryItem(item) {
   try {
     await viewer.playVRMA(item.buffer.slice(0), item.loop);
-    lastVRMA = { buffer: item.buffer, name: item.name };
+    lastVRMA = { spec: item.spec, name: item.name };
     exportBtn.disabled = false;
     setStatus(`再生中: ${item.name} (履歴)\n「${item.text}」`, 'ok');
   } catch (e) {
@@ -137,7 +145,8 @@ function renderHistory() {
 function addHistory(spec, buffer, text) {
   history.unshift({
     name: spec.name || 'motion',
-    buffer,
+    spec,
+    buffer, // プレビュー再生用 (表情込み)
     loop: spec.loop ?? true,
     duration: spec.duration,
     text,
@@ -190,16 +199,17 @@ generateBtn.addEventListener('click', async () => {
   }
 });
 
-// --- エクスポート ---
+// --- エクスポート (ボーンモーションのみ) ---
 exportBtn.addEventListener('click', () => {
   if (!lastVRMA) return;
-  const blob = new Blob([lastVRMA.buffer], { type: 'model/gltf-binary' });
+  const buffer = buildMotionOnlyVRMA(lastVRMA.spec);
+  const blob = new Blob([buffer], { type: 'model/gltf-binary' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `${lastVRMA.name}.vrma`;
   a.click();
   URL.revokeObjectURL(a.href);
-  setStatus(`${lastVRMA.name}.vrma を保存しました。\nVRMA対応アプリ (VRoid Hub, cluster 等) で利用できます。`, 'ok');
+  setStatus(`${lastVRMA.name}.vrma を保存しました (ボーンモーションのみ)。\nVRMA対応アプリ (VRoid Hub, cluster 等) で利用できます。`, 'ok');
 });
 
 // --- VRMアップロード ---
