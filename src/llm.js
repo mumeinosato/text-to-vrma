@@ -47,8 +47,7 @@ hips は腰位置のオフセット(メートル)。不要なら空配列 [] に
 - 回転角は関節の可動域内に収める。特に:
   - leftHand / rightHand (手首) は動かさない (自然な手のポーズが自動で適用される)。
   - leftShoulder / rightShoulder (肩) も動かさない (服のメッシュが歪みやすい)。腕の動きは upperArm で作る。
-  - 肘 (lowerArm) の曲げは Z (または Y) を主軸に。X は「前腕のひねり (手のひらの向き調整)」
-    専用で、曲げと併用してよい。3軸すべてを同時に大きく回すのは破綻のもと。
+  - 肘 (lowerArm) の曲げは Z (または Y) を主軸に。X は使わない (前腕が後ろに流れて破綻する)。
   - 首・頭の合計は ±60 度以内。spine/chest はそれぞれ ±30 度以内。
 - 動きの主役となる関節を決め、それ以外は控えめに。全身の関節を同時に大きく動かさない。
 
@@ -67,13 +66,12 @@ hips は腰位置のオフセット(メートル)。不要なら空配列 [] に
 - 手を振る: 上腕は横斜め上 45〜60 度まで (rightUpperArm Z=-45〜-60 / leftUpperArm Z=+45〜+60)。
   肘 (lowerArm) を 60〜90 度曲げて手を「顔の横〜頭の高さ」に置き、前腕を左右に往復させる。
   腕を真上に伸ばしたまま振るのは絶対に不自然。振りの主役は肘から先。
-- 手のひらの向き (重要): Tポーズの手のひらは下向きなので、腕を上げただけだと
-  手のひらは後ろ/内側を向いてしまう。手を振る・手を見せる動作では前腕をひねって
-  手のひらを正面に向けること: lowerArm の X に -60〜-90 を入れる (左右どちらも負)。
+- 手のひらの向きはアプリ側で自動調整されるため、ひねりを自分で入れない。
+  lowerArm の X は常に 0 にする (X を入れると前腕が後ろに流れて破綻する)。
 - 上腕を 60 度以上上げた状態で肘を 60 度以上曲げない (前腕が頭に被さって不自然)。
 - 右手を振る形の正解例 (この骨格の使い方を守る。振る速さ・回数・首の演技などは自由):
   rightUpperArm を [0,0,-50] 前後で維持し、
-  rightLowerArm を [-80,0,-40] ⇔ [-80,0,-75] の間で往復させる (Xのひねりは維持したまま)。
+  rightLowerArm を [0,0,-40] ⇔ [0,0,-55] の間で往復させる。
 - 挨拶や合図など腕を上げる動作全般: 手の高さは頭の高さまでで十分。
   それ以上は「上腕を上げる」のではなく「肘の曲げ」で調整する。
 - 拍手: 両腕を体の前で構え (upperArm Y ±50〜60 前後 + 少し下げ)、
@@ -153,6 +151,57 @@ const ANGLE_LIMITS = {
   leftFoot: 60, rightFoot: 60,
 };
 const DEFAULT_ANGLE_LIMIT = 175;
+
+// 「手を振る」系テキストの検出
+const WAVE_RE = /手を振|手をふ|バイバイ|ばいばい|さようなら|さよなら|bye|wave|おいで/i;
+
+// トラックの Z 値を時刻 t で線形補間サンプリング
+function sampleZ(keys, t) {
+  const s = [...keys].sort((a, b) => a.t - b.t);
+  if (t <= s[0].t) return s[0].r[2];
+  for (let i = 0; i < s.length - 1; i++) {
+    if (t <= s[i + 1].t) {
+      const span = s[i + 1].t - s[i].t || 1;
+      const f = (t - s[i].t) / span;
+      return s[i].r[2] + (s[i + 1].r[2] - s[i].r[2]) * f;
+    }
+  }
+  return s[s.length - 1].r[2];
+}
+
+// 手を振る動作の幾何学的な矯正: 上腕は52度まで + 腕を上げている間は手のひらを正面に
+function applyWaveCorrection(spec) {
+  for (const side of ['left', 'right']) {
+    const raiseSign = side === 'left' ? 1 : -1;
+    const ua = spec.tracks[`${side}UpperArm`];
+    const la = spec.tracks[`${side}LowerArm`];
+    if (!ua?.length) continue;
+    const maxRaise = Math.max(...ua.map((k) => raiseSign * k.r[2]));
+    if (maxRaise < 35) continue; // 振っていない側の腕は触らない
+    for (const k of ua) {
+      if (raiseSign * k.r[2] > 52) k.r[2] = raiseSign * 52;
+    }
+    if (!la?.length) continue;
+    for (const k of la) {
+      const raise = raiseSign * sampleZ(ua, k.t);
+      if (raise <= 30) continue;
+      // lowerArm の X ひねりは前腕が後ろへ流れるコーン回転になるため除去
+      k.r[0] = 0;
+      // 前腕の世界角 (上腕の上げ + 肘の曲げ) を 88〜108 度 = ほぼ垂直に保つ
+      // → 手が「顔の横」に来る、自然な手振りの形になる
+      const bend = raiseSign * k.r[2];
+      const lo = Math.max(20, 88 - raise);
+      const hi = 108 - raise;
+      k.r[2] = raiseSign * Math.min(hi, Math.max(lo, bend));
+    }
+    // 真の回内 (手のひらを正面に向ける) は手首ボーンの X ひねりで行う
+    // (親チェーンの回転により、hand の X 軸は前腕の長軸 = ひねり軸になる)
+    spec.tracks[`${side}Hand`] = la.map((k) => ({
+      t: k.t,
+      r: [raiseSign * sampleZ(ua, k.t) > 30 ? -85 : 0, 0, 0],
+    }));
+  }
+}
 
 async function callOpenAI(messages, apiKey, model) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -240,6 +289,7 @@ export async function generateMotionWithOpenAI(
   }
 
   if (!spec.hips?.length) delete spec.hips;
+  if (WAVE_RE.test(text)) applyWaveCorrection(spec);
   spec.flavor = flavor; // 表示用 (buildVRMA では無視される)
   return spec;
 }
