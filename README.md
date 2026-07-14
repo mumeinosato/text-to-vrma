@@ -2,8 +2,6 @@
 
 ![デモ: テキストからモーション生成](video/demo.gif)
 
-[🎬 フル画質のデモ動画 (mp4)](video/Tex-To-VRMA.mp4)
-
 テキストを入力すると、OpenAI API がキーフレームを設計し、
 **VRMA (VRM Animation / `.vrma`)** ファイルをブラウザ内で生成して、
 その場で VRM キャラクターを動かす Web アプリです。

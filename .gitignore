@@ -14,3 +14,6 @@ public/models/*.vrm
 .idea/
 .DS_Store
 Thumbs.db
+
+# デモ動画の原本はコミットしない (README は GIF を使用)
+video/*.mp4
