@@ -63,6 +63,10 @@
       border-radius: 6px; color: var(--text); font-size: 12.5px;
       font-family: inherit;
     }
+    label.check {
+      font-size: 12px; color: var(--muted); display: flex; gap: 6px;
+      align-items: center; cursor: pointer;
+    }
     button.primary-outline {
       background: var(--panel2); color: var(--accent2);
       border: 1.5px solid var(--accent2); font-weight: 600; font-size: 14px;
@@ -116,6 +120,10 @@
       <option value="gpt-5.6-terra">gpt-5.6-terra (バランス)</option>
       <option value="gpt-5.6-luna">gpt-5.6-luna (低コスト)</option>
     </select>
+    <label class="check">
+      <input type="checkbox" id="refineCheck" checked />
+      🔍 自己修正 (2パス生成 — 精度向上 / 時間・コスト約2倍)
+    </label>
     <p class="sub">APIキーはブラウザの localStorage にのみ保存され、OpenAI 以外には送信されません。</p>
 
     <div class="section-title">3. モーションをテキストで指示</div>

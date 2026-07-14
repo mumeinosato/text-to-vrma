@@ -11,6 +11,7 @@ const generateBtn = $('generateBtn');
 const exportBtn = $('exportBtn');
 const apiKeyInput = $('apiKey');
 const modelSelect = $('modelSelect');
+const refineCheck = $('refineCheck');
 const vrmBtn = $('vrmBtn');
 const vrmFile = $('vrmFile');
 const vrmName = $('vrmName');
@@ -165,8 +166,12 @@ generateBtn.addEventListener('click', async () => {
     localStorage.setItem('openai-api-key', apiKey);
     const model = modelSelect.value;
     localStorage.setItem('openai-model', model);
+    localStorage.setItem('refine-enabled', refineCheck.checked ? '1' : '0');
     setStatus(`ChatGPT (${model}) がモーションを生成中... (数十秒かかることがあります)`);
-    const spec = await generateMotionWithChatGPT(text, apiKey, model);
+    const spec = await generateMotionWithChatGPT(text, apiKey, model, {
+      refine: refineCheck.checked,
+      onProgress: (msg) => setStatus(msg),
+    });
     const buffer = await playSpec(spec);
     addHistory(spec, buffer, text);
   } catch (e) {
@@ -230,6 +235,7 @@ viewerWrap.addEventListener('drop', (e) => {
 
 // --- 設定復元 / Ctrl+Enterで生成 ---
 apiKeyInput.value = localStorage.getItem('openai-api-key') ?? '';
+refineCheck.checked = localStorage.getItem('refine-enabled') !== '0';
 const savedModel = localStorage.getItem('openai-model');
 if (savedModel && [...modelSelect.options].some((o) => o.value === savedModel)) {
   modelSelect.value = savedModel;

@@ -35,6 +35,8 @@ npm run dev
 2. OpenAI API キーを入力し、モデル (gpt-5.6 系) を選択
    - キーはブラウザの localStorage にのみ保存され、OpenAI 以外には送信されません
 3. テキストを入力して「▶ モーション生成 & 再生」 (Ctrl+Enter でも可)
+   - 「🔍 自己修正」ON (デフォルト) では生成後にもう1パス、可動域・軌道・緩急の
+     セルフレビューを行い品質を上げます (API呼び出しが2回になります)
 4. 「⬇ .vrma 保存」で生成アニメーションをファイルに書き出し
 
 ## アーキテクチャ
@@ -51,7 +53,7 @@ npm run dev
 
 | ファイル | 役割 |
 | --- | --- |
-| `src/llm.js` | ChatGPT へのプロンプト (ボーン規約・出力形式) と spec 検証 |
+| `src/llm.js` | ChatGPT へのプロンプト (ボーン規約・お手本モーション5種) / 2パス自己修正 / spec 検証・角度クランプ |
 | `src/vrmaBuilder.js` | モーション spec から VRMA (GLB) をバイナリ生成。VRM1 規約の T ポーズ骨格を埋め込み、`VRMC_vrm_animation` 拡張でヒューマノイドボーンをマッピング |
 | `src/viewer.js` | three.js シーン / VRM ロード / VRMA 再生 |
 | `src/idleMotion.js` | 待機モーション (呼吸) |

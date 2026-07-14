@@ -57,7 +57,9 @@ hips は腰位置のオフセット(メートル)。不要なら空配列 [] に
 - 体の向きと視線を添える: 大きな動作には head や chest の小さな傾き (5〜10度) を
   連動させる。ただし主役の関節より控えめに。
 
-# 良い例 (右手を振る)
+# 良い例 (この品質・この作法を真似ること)
+
+## 右手を振る (往復の緩急 + 頭の連動)
 {"name":"wave","duration":2.6,"loop":true,
  "tracks":{
   "leftUpperArm":[{"t":0,"r":[0,0,-70]},{"t":2.6,"r":[0,0,-70]}],
@@ -65,7 +67,60 @@ hips は腰位置のオフセット(メートル)。不要なら空配列 [] に
   "rightLowerArm":[{"t":0,"r":[0,0,0]},{"t":0.4,"r":[0,0,-60]},{"t":0.8,"r":[0,0,-85]},{"t":1.2,"r":[0,0,-45]},{"t":1.6,"r":[0,0,-85]},{"t":2.0,"r":[0,0,-60]},{"t":2.6,"r":[0,0,0]}],
   "head":[{"t":0,"r":[0,0,0]},{"t":0.5,"r":[0,-8,5]},{"t":2.1,"r":[0,-8,5]},{"t":2.6,"r":[0,0,0]}]
  },
- "hips":[]}`;
+ "hips":[]}
+
+## お辞儀 (背骨を分散して曲げる + 静止の間)
+{"name":"bow","duration":2.4,"loop":false,
+ "tracks":{
+  "leftUpperArm":[{"t":0,"r":[0,0,-70]},{"t":2.4,"r":[0,0,-70]}],
+  "rightUpperArm":[{"t":0,"r":[0,0,70]},{"t":2.4,"r":[0,0,70]}],
+  "spine":[{"t":0,"r":[0,0,0]},{"t":0.7,"r":[22,0,0]},{"t":1.6,"r":[22,0,0]},{"t":2.4,"r":[0,0,0]}],
+  "chest":[{"t":0,"r":[0,0,0]},{"t":0.7,"r":[18,0,0]},{"t":1.6,"r":[18,0,0]},{"t":2.4,"r":[0,0,0]}],
+  "neck":[{"t":0,"r":[0,0,0]},{"t":0.7,"r":[12,0,0]},{"t":1.6,"r":[12,0,0]},{"t":2.4,"r":[0,0,0]}]
+ },
+ "hips":[]}
+
+## ジャンプ (しゃがみの予備動作 → 空中 → 着地の沈み込み)
+{"name":"jump","duration":1.8,"loop":false,
+ "tracks":{
+  "leftUpperArm":[{"t":0,"r":[0,0,-70]},{"t":0.35,"r":[0,0,-50]},{"t":0.55,"r":[0,0,60]},{"t":0.9,"r":[0,0,60]},{"t":1.3,"r":[0,0,-70]},{"t":1.8,"r":[0,0,-70]}],
+  "rightUpperArm":[{"t":0,"r":[0,0,70]},{"t":0.35,"r":[0,0,50]},{"t":0.55,"r":[0,0,-60]},{"t":0.9,"r":[0,0,-60]},{"t":1.3,"r":[0,0,70]},{"t":1.8,"r":[0,0,70]}],
+  "leftUpperLeg":[{"t":0,"r":[0,0,0]},{"t":0.35,"r":[-40,0,0]},{"t":0.55,"r":[0,0,0]},{"t":1.1,"r":[-25,0,0]},{"t":1.4,"r":[0,0,0]},{"t":1.8,"r":[0,0,0]}],
+  "rightUpperLeg":[{"t":0,"r":[0,0,0]},{"t":0.35,"r":[-40,0,0]},{"t":0.55,"r":[0,0,0]},{"t":1.1,"r":[-25,0,0]},{"t":1.4,"r":[0,0,0]},{"t":1.8,"r":[0,0,0]}],
+  "leftLowerLeg":[{"t":0,"r":[0,0,0]},{"t":0.35,"r":[70,0,0]},{"t":0.55,"r":[0,0,0]},{"t":1.1,"r":[45,0,0]},{"t":1.4,"r":[0,0,0]},{"t":1.8,"r":[0,0,0]}],
+  "rightLowerLeg":[{"t":0,"r":[0,0,0]},{"t":0.35,"r":[70,0,0]},{"t":0.55,"r":[0,0,0]},{"t":1.1,"r":[45,0,0]},{"t":1.4,"r":[0,0,0]},{"t":1.8,"r":[0,0,0]}]
+ },
+ "hips":[{"t":0,"p":[0,0,0]},{"t":0.35,"p":[0,-0.18,0]},{"t":0.65,"p":[0,0.28,0]},{"t":1.0,"p":[0,-0.1,0]},{"t":1.4,"p":[0,0,0]},{"t":1.8,"p":[0,0,0]}]}
+
+## 後ろを振り返る (視線が先行 → 体が追従する順序付け)
+{"name":"turnBack","duration":3.0,"loop":false,
+ "tracks":{
+  "leftUpperArm":[{"t":0,"r":[0,0,-70]},{"t":3.0,"r":[0,0,-70]}],
+  "rightUpperArm":[{"t":0,"r":[0,0,70]},{"t":3.0,"r":[0,0,70]}],
+  "head":[{"t":0,"r":[0,0,0]},{"t":0.3,"r":[0,35,0]},{"t":0.8,"r":[0,50,0]},{"t":2.2,"r":[0,20,0]},{"t":3.0,"r":[0,0,0]}],
+  "chest":[{"t":0,"r":[0,0,0]},{"t":0.5,"r":[0,20,0]},{"t":1.0,"r":[0,25,0]},{"t":2.3,"r":[0,10,0]},{"t":3.0,"r":[0,0,0]}]
+ },
+ "hips":[{"t":0,"p":[0,0,0]},{"t":0.6,"p":[0,0,0]},{"t":3.0,"p":[0,0,0]}]}
+
+## 喜んで跳ねる (感情表現 = 体全体のリズム + 頭の上向き)
+{"name":"joy","duration":2.4,"loop":true,
+ "tracks":{
+  "leftUpperArm":[{"t":0,"r":[0,0,-70]},{"t":0.3,"r":[0,0,60]},{"t":0.7,"r":[0,0,80]},{"t":1.1,"r":[0,0,60]},{"t":1.5,"r":[0,0,80]},{"t":1.9,"r":[0,0,60]},{"t":2.4,"r":[0,0,-70]}],
+  "rightUpperArm":[{"t":0,"r":[0,0,70]},{"t":0.3,"r":[0,0,-60]},{"t":0.7,"r":[0,0,-80]},{"t":1.1,"r":[0,0,-60]},{"t":1.5,"r":[0,0,-80]},{"t":1.9,"r":[0,0,-60]},{"t":2.4,"r":[0,0,70]}],
+  "head":[{"t":0,"r":[0,0,0]},{"t":0.4,"r":[-12,0,0]},{"t":1.9,"r":[-12,0,0]},{"t":2.4,"r":[0,0,0]}]
+ },
+ "hips":[{"t":0,"p":[0,0,0]},{"t":0.3,"p":[0,-0.08,0]},{"t":0.6,"p":[0,0.12,0]},{"t":0.9,"p":[0,-0.05,0]},{"t":1.2,"p":[0,0.12,0]},{"t":1.5,"p":[0,-0.05,0]},{"t":1.8,"p":[0,0.1,0]},{"t":2.1,"p":[0,0,0]},{"t":2.4,"p":[0,0,0]}]}`;
+
+// 2パス目: 生成結果を検証・修正させるプロンプト
+const REFINE_INSTRUCTION = `以下は上記の指示で生成されたモーションJSONです。アニメーターとしてレビューし、
+問題があれば修正した完全なJSONのみを返してください (問題がなければそのまま返す)。
+
+チェック観点:
+1. 可動域: 各関節がルールの範囲内か。腕が真上 (±90度) を超えていないか。
+2. 軌道: 腕や脚が体・頭と交差していないか。左右の取り違えがないか。
+3. 自然さ: 肘が伸びきっていないか。往復運動の端で減速しているか。予備動作と余韻があるか。
+4. 完全性: 使うボーンに t=0 と t=duration のキーがあるか。非ループは最初と最後がニュートラルか。
+5. 意図: そもそもユーザーの指示した動きになっているか。`;
 
 // ボーン別の安全な角度上限 (度)。LLM出力の暴れをクランプする
 const ANGLE_LIMITS = {
@@ -78,14 +133,7 @@ const ANGLE_LIMITS = {
 };
 const DEFAULT_ANGLE_LIMIT = 175;
 
-/**
- * OpenAI API でテキストからモーション spec を生成する。
- * @param {string} text ユーザー入力
- * @param {string} apiKey OpenAI API キー (sk-...)
- * @param {string} model 使用するモデル ID (例: 'gpt-5.1', 'gpt-4o')
- * @returns {Promise<object>} モーション spec
- */
-export async function generateMotionWithChatGPT(text, apiKey, model = DEFAULT_OPENAI_MODEL) {
+async function callOpenAI(messages, apiKey, model) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -95,10 +143,7 @@ export async function generateMotionWithChatGPT(text, apiKey, model = DEFAULT_OP
     body: JSON.stringify({
       model,
       response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `次の動きのモーションを作成: ${text}` },
-      ],
+      messages,
     }),
   });
 
@@ -114,9 +159,61 @@ export async function generateMotionWithChatGPT(text, apiKey, model = DEFAULT_OP
   const data = await res.json();
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error('ChatGPT から有効な応答が得られませんでした');
+  return content;
+}
 
-  const spec = JSON.parse(content);
+/**
+ * OpenAI API でテキストからモーション spec を生成する。
+ * @param {string} text ユーザー入力
+ * @param {string} apiKey OpenAI API キー (sk-...)
+ * @param {string} model 使用するモデル ID (例: 'gpt-5.6-sol')
+ * @param {object} [options]
+ * @param {boolean} [options.refine=true] 2パス目で自己修正を行う
+ * @param {(msg: string) => void} [options.onProgress] 進捗表示コールバック
+ * @returns {Promise<object>} モーション spec
+ */
+export async function generateMotionWithChatGPT(
+  text,
+  apiKey,
+  model = DEFAULT_OPENAI_MODEL,
+  { refine = true, onProgress } = {}
+) {
+  const userMsg = `次の動きのモーションを作成: ${text}`;
+
+  // 1パス目: 生成
+  const draft = await callOpenAI(
+    [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMsg },
+    ],
+    apiKey,
+    model
+  );
+  let spec = JSON.parse(draft);
   validateSpec(spec);
+
+  // 2パス目: 自己修正 (失敗しても1パス目の結果を使う)
+  if (refine) {
+    onProgress?.('生成したモーションを検証・修正中... (2パス目)');
+    try {
+      const refined = await callOpenAI(
+        [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userMsg },
+          { role: 'assistant', content: JSON.stringify(spec) },
+          { role: 'user', content: REFINE_INSTRUCTION },
+        ],
+        apiKey,
+        model
+      );
+      const refinedSpec = JSON.parse(refined);
+      validateSpec(refinedSpec);
+      spec = refinedSpec;
+    } catch (e) {
+      console.warn('自己修正パスに失敗したため1パス目の結果を使用します:', e);
+    }
+  }
+
   if (!spec.hips?.length) delete spec.hips;
   return spec;
 }
