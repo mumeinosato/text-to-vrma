@@ -88,11 +88,20 @@ LLM が生成する中間表現です:
   プレビュー再生でのみ使用され、書き出される `.vrma` には含まれません
 - 座標規約: モデルは +Z 正面 / +X が左手側 (VRM 1.0 準拠)
 
+## 注意事項
+
+- モーション生成には OpenAI API の利用料が発生します (1回あたり数円〜十数円程度。
+  使用モデルとモーションの長さによって変動)
+- OpenAI の [データ共有プログラム (Complimentary daily tokens)](https://help.openai.com/en/articles/10306912-sharing-feedback-evaluation-and-fine-tuning-data-and-api-inputs-and-outputs-with-openai)
+  を有効にすると、1日あたりの無料トークン枠内で**無料で試せます**
+  (API の入出力が OpenAI のモデル学習に共有される点に注意。対象アカウント・地域の条件あり)
+- 生成される `.vrma` の利用は各自の責任で行ってください
+
 ## 開発者
 
 - X (Twitter): [@Kiratchi0328](https://x.com/Kiratchi0328)
 
-## ライセンス / 注意
+## ライセンス
 
 - コード: MIT License (Copyright (c) 2026 Kiratchi)
 - **クレジット表記のお願い**: 本ツールをアプリやサービスに組み込む場合、
@@ -109,9 +118,6 @@ LLM が生成する中間表現です:
 - 同梱の AvatarSample モデル (© pixiv / VRoid) は **MIT ライセンスの対象外**です。
   [VRoid の利用条件](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
   に従ってください (無償利用・再配布可 / **有償での再配布と CC0 としての配布は禁止**)
-- モーション生成には OpenAI API の利用料が発生します (1回あたり数円〜十数円程度。
-  使用モデルとモーションの長さによって変動)
 - その他の VRM モデルは各モデルの利用規約に従ってください
 - **生成された `.vrma` は MIT ライセンスの対象外**で、生成した利用者のものです。
   本プロジェクトが生成物に権利を主張することはなく、商用含め自由に利用できます
-  (利用は各自の責任で行ってください)
