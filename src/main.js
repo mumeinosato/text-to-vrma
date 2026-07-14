@@ -26,23 +26,23 @@ function setStatus(msg, kind = '') {
 
 // --- ビューア初期化 ---
 const viewer = new Viewer($('canvas'));
-const DEFAULT_MODEL_URL = '/models/Zundamon.vrm';
+// 手持ちモデル (未コミット) → 同梱サンプルの順に試す
+const DEFAULT_MODEL_URLS = ['/models/Zundamon.vrm', '/models/SampleBot.vrm'];
 
 async function init() {
-  try {
-    setStatus('VRMモデルを読み込み中...');
-    await viewer.loadVRM(DEFAULT_MODEL_URL);
-    setStatus('準備完了。テキストを入力して「モーション生成」を押してください。', 'ok');
-    await playSpec(idleSpec(), { silent: true });
-  } catch {
-    // デフォルトモデル未配置 (クローン直後など) は VRM アップロードを促す
-    vrmName.textContent = 'モデル未読込 — VRMファイルを開いてください。';
-    setStatus(
-      'デフォルトのVRMモデルが見つかりません。\n' +
-      '「VRMファイルを開く」から手持ちの .vrm を読み込んでください。',
-      'err'
-    );
+  setStatus('VRMモデルを読み込み中...');
+  for (const url of DEFAULT_MODEL_URLS) {
+    try {
+      await viewer.loadVRM(url);
+      const name = url.split('/').pop();
+      vrmName.textContent = `${name} — 3Dビューへのドラッグ&ドロップでも差し替えできます。`;
+      setStatus('準備完了。テキストを入力して「モーション生成」を押してください。', 'ok');
+      await playSpec(idleSpec(), { silent: true });
+      return;
+    } catch { /* 次の候補へ */ }
   }
+  vrmName.textContent = 'モデル未読込 — VRMファイルを開いてください。';
+  setStatus('VRMモデルが見つかりません。\n「VRMファイルを開く」から .vrm を読み込んでください。', 'err');
 }
 
 // --- モーション再生共通処理 ---

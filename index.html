@@ -62,7 +62,10 @@
       border-radius: 6px; color: var(--text); font-size: 12.5px;
       font-family: inherit;
     }
-    button.secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); font-weight: 500; font-size: 13px; }
+    button.primary-outline {
+      background: var(--panel2); color: var(--accent2);
+      border: 1.5px solid var(--accent2); font-weight: 600; font-size: 14px;
+    }
     #viewerWrap.dragover::after {
       content: 'VRMファイルをドロップして読み込み';
       position: absolute; inset: 12px; display: flex;
@@ -81,6 +84,12 @@
     <h1>Text <span>→</span> VRMA</h1>
     <p class="sub">テキストからVRMアニメーション (.vrma) を生成して、その場でキャラクターを動かします。</p>
 
+    <div class="section-title">1. VRMモデル</div>
+    <button id="vrmBtn" class="primary-outline">📂 VRMファイルを開く</button>
+    <input type="file" id="vrmFile" accept=".vrm" style="display:none" />
+    <p class="sub" id="vrmName">読み込み中... — 3Dビューへのドラッグ&amp;ドロップでも読み込めます。</p>
+
+    <div class="section-title">2. モーションをテキストで指示</div>
     <textarea id="textInput" placeholder="例: 忍者のように構えてから手裏剣を投げる&#10;例: 手を振ってからお辞儀する&#10;例: 大きくジャンプを3回"></textarea>
     <button id="generateBtn">▶ モーション生成 &amp; 再生</button>
 
@@ -89,7 +98,7 @@
       <button id="stopBtn">■ 停止</button>
     </div>
 
-    <div id="status">VRMモデルを読み込み中...</div>
+    <div id="status">準備中...</div>
 
     <div class="section-title">🤖 ChatGPT API 設定</div>
     <input type="password" id="apiKey" placeholder="OpenAI APIキー (sk-...)" />
@@ -98,11 +107,6 @@
       <option value="gpt-5.6">gpt-5.6</option>
     </select>
     <p class="sub">APIキーはブラウザの localStorage にのみ保存され、OpenAI 以外には送信されません。</p>
-
-    <div class="section-title">VRMモデル</div>
-    <button id="vrmBtn" class="secondary">📂 VRMファイルを開く</button>
-    <input type="file" id="vrmFile" accept=".vrm" style="display:none" />
-    <p class="sub" id="vrmName">Zundamon.vrm (デフォルト) — 3Dビューへのドラッグ&amp;ドロップでも読み込めます。</p>
   </div>
 
   <div id="viewerWrap">

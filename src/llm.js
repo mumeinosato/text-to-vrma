@@ -39,7 +39,32 @@ hips は腰位置のオフセット(メートル)。不要なら空配列 [] に
 - 使うボーンには必ず t=0 と t=duration のキーを置き、非ループなら最初と最後をニュートラルに戻す。
 - キーは滑らかに補間される (線形+球面補間)。動きに緩急をつけるためキーを十分に打つ (1モーションあたり4〜12キー程度)。
 - duration は 1.5〜6 秒程度。感情や勢いをテキストから読み取って表現豊かに。
-- 回転角は関節の可動域内 (概ね ±150 度以内) に収める。`;
+- 回転角は関節の可動域内に収める。特に:
+  - leftHand / rightHand (手首) は原則使わない。使う場合も ±30 度以内の小さな回転のみ。
+  - 肘 (lowerArm) は1軸中心に曲げる。複数軸を同時に大きく回すと関節が破綻する。
+  - shoulder は ±15 度程度の補助にとどめ、腕の主な動きは upperArm で作る。
+  - 首・頭の合計は ±60 度以内。spine/chest はそれぞれ ±30 度以内。
+- 動きの主役となる関節を決め、それ以外は控えめに。全身の関節を同時に大きく動かさない。
+
+# 良い例 (右手を振る)
+{"name":"wave","duration":2.6,"loop":true,
+ "tracks":{
+  "leftUpperArm":[{"t":0,"r":[0,0,-70]},{"t":2.6,"r":[0,0,-70]}],
+  "rightUpperArm":[{"t":0,"r":[0,0,70]},{"t":0.4,"r":[0,0,-45]},{"t":2.2,"r":[0,0,-45]},{"t":2.6,"r":[0,0,70]}],
+  "rightLowerArm":[{"t":0,"r":[0,0,0]},{"t":0.4,"r":[0,0,-60]},{"t":0.8,"r":[0,0,-85]},{"t":1.2,"r":[0,0,-45]},{"t":1.6,"r":[0,0,-85]},{"t":2.0,"r":[0,0,-60]},{"t":2.6,"r":[0,0,0]}],
+  "head":[{"t":0,"r":[0,0,0]},{"t":0.5,"r":[0,-8,5]},{"t":2.1,"r":[0,-8,5]},{"t":2.6,"r":[0,0,0]}]
+ },
+ "hips":[]}`;
+
+// ボーン別の安全な角度上限 (度)。LLM出力の暴れをクランプする
+const ANGLE_LIMITS = {
+  leftHand: 35, rightHand: 35,
+  leftShoulder: 30, rightShoulder: 30,
+  neck: 45, head: 70,
+  spine: 45, chest: 45, upperChest: 45,
+  leftFoot: 60, rightFoot: 60,
+};
+const DEFAULT_ANGLE_LIMIT = 175;
 
 /**
  * OpenAI API でテキストからモーション spec を生成する。
@@ -97,9 +122,13 @@ function validateSpec(spec) {
       delete spec.tracks[bone];
       continue;
     }
-    spec.tracks[bone] = keys.filter(
-      (k) => typeof k?.t === 'number' && Array.isArray(k.r) && k.r.length === 3
-    );
+    const limit = ANGLE_LIMITS[bone] ?? DEFAULT_ANGLE_LIMIT;
+    spec.tracks[bone] = keys
+      .filter((k) => typeof k?.t === 'number' && Array.isArray(k.r) && k.r.length === 3)
+      .map((k) => ({
+        t: k.t,
+        r: k.r.map((v) => Math.max(-limit, Math.min(limit, Number(v) || 0))),
+      }));
     if (spec.tracks[bone].length === 0) delete spec.tracks[bone];
   }
   if (Object.keys(spec.tracks).length === 0 && !spec.hips?.length) {

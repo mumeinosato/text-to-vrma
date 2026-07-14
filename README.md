@@ -11,7 +11,9 @@
 
 - Node.js 20+
 - OpenAI API キー ([platform.openai.com](https://platform.openai.com/) で取得)
-- 手持ちの VRM モデル (`.vrm`)
+
+VRM モデルはサンプル (`public/models/SampleBot.vrm`、本リポジトリ生成の箱ロボット) を
+同梱しているのでそのまま試せます。手持ちの `.vrm` への差し替えも可能です。
 
 ## セットアップ & 起動
 
@@ -25,9 +27,9 @@ npm run dev
 
 ## 使い方
 
-1. 「VRMファイルを開く」または 3D ビューへのドラッグ&ドロップで VRM モデルを読み込む
-   - `public/models/Zundamon.vrm` にモデルを置くと起動時に自動読み込みされます
-     (モデルの再配布規約があるためリポジトリには含めていません)
+1. 起動するとサンプルモデル (SampleBot) が読み込まれます。
+   「VRMファイルを開く」または 3D ビューへのドラッグ&ドロップで手持ちの VRM に差し替え可能
+   - `public/models/Zundamon.vrm` など好きなモデルを置くと起動時に優先読み込みされます
 2. OpenAI API キーを入力し、モデル (gpt-5.6 系) を選択
    - キーはブラウザの localStorage にのみ保存され、OpenAI 以外には送信されません
 3. テキストを入力して「▶ モーション生成 & 再生」 (Ctrl+Enter でも可)
@@ -52,6 +54,7 @@ npm run dev
 | `src/viewer.js` | three.js シーン / VRM ロード / VRMA 再生 |
 | `src/idleMotion.js` | 待機モーション (呼吸) |
 | `src/main.js` | UI 結線 |
+| `scripts/generateSampleVRM.mjs` | 同梱サンプル VRM (SampleBot) の生成スクリプト |
 
 ## モーション spec フォーマット
 
@@ -77,6 +80,6 @@ ChatGPT が生成する中間表現です:
 
 ## ライセンス / 注意
 
-- コード: MIT License
-- VRM モデルは各モデルの利用規約に従ってください (本リポジトリにモデルは含まれません)
+- コード・同梱サンプルモデル (SampleBot.vrm): MIT License
+- サードパーティの VRM モデルは各モデルの利用規約に従ってください
 - 生成される `.vrma` の利用は各自の責任で行ってください

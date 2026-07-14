@@ -2,8 +2,10 @@ node_modules/
 dist/
 *.local
 
-# VRMモデルは再配布規約があるためコミットしない
+# サードパーティのVRMモデルは再配布規約があるためコミットしない
+# (SampleBot.vrm は本リポジトリで生成した自作モデルなので同梱)
 public/models/*.vrm
+!public/models/SampleBot.vrm
 
 # エディタ / OS
 .vscode/
