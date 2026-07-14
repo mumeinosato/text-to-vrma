@@ -107,7 +107,18 @@ LLM が生成する中間表現です:
 
 ## ライセンス / 注意
 
-- コード: MIT License
+- コード: MIT License (Copyright (c) 2026 Kiratchi)
+- **クレジット表記のお願い**: 本ツールをアプリやサービスに組み込む場合、
+  義務ではありませんが、画面やクレジット欄に以下のような表記をしていただけると嬉しいです。
+
+  ```text
+  Motion generation powered by Text-To-VRMA (© Kiratchi)
+  https://github.com/Kirakun0328/text-to-vrma
+  ```
+
+  なお MIT ライセンスの条件として、コードのコピー・再配布時には上記の著作権表示と
+  ライセンス文の同梱が必要です (これは義務です)。
+
 - 同梱の AvatarSample モデル (© pixiv / VRoid) は **MIT ライセンスの対象外**です。
   [VRoid の利用条件](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
   に従ってください (無償利用・再配布可 / **有償での再配布と CC0 としての配布は禁止**)
