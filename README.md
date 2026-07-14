@@ -12,14 +12,9 @@
 - Node.js 20+
 - OpenAI API キー ([platform.openai.com](https://platform.openai.com/) で取得)
 
-VRM モデルはサンプル (`public/models/SampleBot.vrm`、本リポジトリ生成のローポリ人間) を
-同梱しているのでそのまま試せます。手持ちの `.vrm` への差し替えも可能です。
-
-`public/models/AvatarSample_A.vrm` に VRoid 公式サンプルモデルを置くと、
-起動時にそちらが優先して読み込まれます
-([VRoid Hub の AvatarSample](https://hub.vroid.com/characters/2843975675147313744/models/5644550979324015604)
-からダウンロード。無償での再配布は許可されていますが、有償再配布と CC0 としての
-配布は禁止されています — モデルは MIT ライセンスの対象外です)。
+VRM モデルは [VRoid 公式サンプルモデル (AvatarSample)](https://hub.vroid.com/characters/2843975675147313744/models/5644550979324015604)
+の VRM1.0 版・VRM0.0 版を同梱しており、起動時に VRM1.0 版が読み込まれます。
+手持ちの `.vrm` への差し替えも可能です。
 
 VRM **0.x / 1.0 の両形式に対応**しています (three-vrm が自動判別し、向きも正規化)。
 
@@ -35,9 +30,8 @@ npm run dev
 
 ## 使い方
 
-1. 起動するとサンプルモデル (SampleBot) が読み込まれます。
+1. 起動するとサンプルモデル (AvatarSample VRM1.0版) が読み込まれます。
    「VRMファイルを開く」または 3D ビューへのドラッグ&ドロップで手持ちの VRM に差し替え可能
-   - `public/models/Zundamon.vrm` など好きなモデルを置くと起動時に優先読み込みされます
 2. OpenAI API キーを入力し、モデル (gpt-5.6 系) を選択
    - キーはブラウザの localStorage にのみ保存され、OpenAI 以外には送信されません
 3. テキストを入力して「▶ モーション生成 & 再生」 (Ctrl+Enter でも可)
@@ -62,7 +56,6 @@ npm run dev
 | `src/viewer.js` | three.js シーン / VRM ロード / VRMA 再生 |
 | `src/idleMotion.js` | 待機モーション (呼吸) |
 | `src/main.js` | UI 結線 |
-| `scripts/generateSampleVRM.mjs` | 同梱サンプル VRM (SampleBot) の生成スクリプト |
 
 ## モーション spec フォーマット
 
@@ -88,6 +81,9 @@ ChatGPT が生成する中間表現です:
 
 ## ライセンス / 注意
 
-- コード・同梱サンプルモデル (SampleBot.vrm): MIT License
-- サードパーティの VRM モデルは各モデルの利用規約に従ってください
+- コード: MIT License
+- 同梱の AvatarSample モデル (© pixiv / VRoid) は **MIT ライセンスの対象外**です。
+  [VRoid の利用条件](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
+  に従ってください (無償利用・再配布可 / **有償での再配布と CC0 としての配布は禁止**)
+- その他の VRM モデルは各モデルの利用規約に従ってください
 - 生成される `.vrma` の利用は各自の責任で行ってください

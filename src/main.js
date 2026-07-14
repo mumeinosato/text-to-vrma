@@ -28,10 +28,10 @@ function setStatus(msg, kind = '') {
 
 // --- ビューア初期化 ---
 const viewer = new Viewer($('canvas'));
-// 起動時の読み込み優先順: VRoidサンプル (VRM0/VRM1) → 自作サンプル
+// 起動時の読み込み優先順: VRoidサンプル VRM1.0 → VRM0.0
 const DEFAULT_MODEL_URLS = [
-  '/models/AvatarSample_A.vrm',
-  '/models/SampleBot.vrm',
+  '/models/AvatarSample_VRM1.0.vrm',
+  '/models/AvatarSample_VRM0.0.vrm',
 ];
 
 async function init() {

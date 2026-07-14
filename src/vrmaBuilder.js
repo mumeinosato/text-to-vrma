@@ -26,8 +26,28 @@ export const SKELETON = {
   rightFoot:     ['rightLowerLeg',[0,     -0.42, 0]],
 };
 
+// 指ボーン (人差し指〜小指 × 3関節)。LLM には公開せず、自然な手のポーズを自動で焼き込む用
+const FINGER_SEGMENTS = { Proximal: [0.09, 0.035], Intermediate: [0.035, 0.028], Distal: [0.025, 0.02] };
+for (const side of ['left', 'right']) {
+  const sx = side === 'left' ? 1 : -1;
+  const fingers = { Index: 0.025, Middle: 0.008, Ring: -0.008, Little: -0.024 };
+  for (const [finger, z] of Object.entries(fingers)) {
+    let parent = `${side}Hand`;
+    for (const [seg, [len]] of Object.entries(FINGER_SEGMENTS)) {
+      const name = `${side}${finger}${seg}`;
+      SKELETON[name] = [parent, [sx * len, 0, seg === 'Proximal' ? z : 0]];
+      parent = name;
+    }
+  }
+}
+
 export const HIPS_HEIGHT = 0.9;
-export const BONE_NAMES = Object.keys(SKELETON);
+// LLM に公開する主要ボーン (指は含めない)
+export const BONE_NAMES = Object.keys(SKELETON).filter((n) => !/Proximal|Intermediate|Distal/.test(n));
+const ALL_BONES = Object.keys(SKELETON);
+
+// 自然な手: 指を軽く曲げるデフォルトポーズ (度)
+const FINGER_CURL = { Proximal: 26, Intermediate: 30, Distal: 20 };
 
 const eulerQuat = (() => {
   const e = new THREE.Euler();
@@ -57,14 +77,31 @@ const eulerQuat = (() => {
 export function buildVRMA(spec) {
   const nodes = [];
   const nodeIndex = {};
-  for (const name of BONE_NAMES) {
+  for (const name of ALL_BONES) {
     nodeIndex[name] = nodes.length;
     nodes.push({ name: `J_${name}`, translation: [...SKELETON[name][1]] });
   }
-  for (const name of BONE_NAMES) {
+  for (const name of ALL_BONES) {
     const parent = SKELETON[name][0];
     if (parent !== null) {
       (nodes[nodeIndex[parent]].children ??= []).push(nodeIndex[name]);
+    }
+  }
+
+  // 指のトラックが無ければ「軽く曲げた自然な手」を焼き込む
+  // (指ボーンを持たないモデルではリターゲット時に無視される)
+  const tracks = { ...(spec.tracks ?? {}) };
+  const dur = spec.duration ?? 1;
+  for (const side of ['left', 'right']) {
+    const sign = side === 'left' ? -1 : 1;
+    for (const finger of ['Index', 'Middle', 'Ring', 'Little']) {
+      for (const [seg, deg] of Object.entries(FINGER_CURL)) {
+        const bone = `${side}${finger}${seg}`;
+        if (!(bone in tracks)) {
+          const r = [0, 0, sign * deg];
+          tracks[bone] = [{ t: 0, r }, { t: dur, r }];
+        }
+      }
     }
   }
 
@@ -96,7 +133,7 @@ export function buildVRMA(spec) {
   const samplers = [];
   const channels = [];
 
-  const trackEntries = Object.entries(spec.tracks ?? {}).filter(
+  const trackEntries = Object.entries(tracks).filter(
     ([bone]) => bone in SKELETON
   );
   for (const [bone, keys] of trackEntries) {
@@ -135,7 +172,7 @@ export function buildVRMA(spec) {
   }
 
   const humanBones = {};
-  for (const name of BONE_NAMES) humanBones[name] = { node: nodeIndex[name] };
+  for (const name of ALL_BONES) humanBones[name] = { node: nodeIndex[name] };
 
   const json = {
     asset: { version: '2.0', generator: 'text-to-motion' },
