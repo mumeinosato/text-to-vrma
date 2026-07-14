@@ -90,6 +90,8 @@ LLM が生成する中間表現です:
 
 ## 注意事項
 
+- **動作確認環境: Windows 11** (macOS / Linux では動作未確認です。
+  ブラウザで動く Web アプリのため動作する見込みはありますが、保証はありません)
 - モーション生成には OpenAI API の利用料が発生します (1回あたり数円〜十数円程度。
   使用モデルとモーションの長さによって変動)
 - OpenAI の [データ共有プログラム (Complimentary daily tokens)](https://help.openai.com/en/articles/10306912-sharing-feedback-evaluation-and-fine-tuning-data-and-api-inputs-and-outputs-with-openai)
