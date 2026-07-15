@@ -386,11 +386,36 @@ function validateSpec(spec) {
         k.r[2] = Math.max(-15, Math.min(15, k.r[2]));
       }
     }
+    // 肘のガード: X ひねり (コーン回転) と後方への折れ (Y 逆方向 = 過伸展) を防ぐ
+    if (bone === 'leftLowerArm' || bone === 'rightLowerArm') {
+      const fwdSign = bone === 'rightLowerArm' ? 1 : -1; // 前方への曲げ: 右 Y 正 / 左 Y 負
+      for (const k of spec.tracks[bone]) {
+        k.r[0] = Math.max(-10, Math.min(10, k.r[0]));
+        const y = fwdSign * k.r[1];
+        k.r[1] = fwdSign * Math.max(-15, Math.min(135, y));
+      }
+    }
     if (spec.tracks[bone].length === 0) delete spec.tracks[bone];
   }
   if (Object.keys(spec.tracks).length === 0 && !spec.hips?.length) {
     throw new Error('生成されたモーションに有効なトラックがありません');
   }
+  // 肘の過伸展ガード: 上腕を大きく回した向きと逆方向へ肘が大きく折れるのを防ぐ
+  // (例: 腕を上げているのに肘が下向きに折れる)。逆方向は 15 度まで許容
+  for (const side of ['left', 'right']) {
+    const ua = spec.tracks[`${side}UpperArm`];
+    const la = spec.tracks[`${side}LowerArm`];
+    if (!ua?.length || !la?.length) continue;
+    for (const k of la) {
+      const uaZ = sampleZ(ua, k.t);
+      if (Math.abs(uaZ) < 40) continue;
+      const sign = Math.sign(uaZ);
+      if (Math.sign(k.r[2]) === -sign && Math.abs(k.r[2]) > 15) {
+        k.r[2] = -sign * 15;
+      }
+    }
+  }
+
   // 前腕が頭に被さる構図の防止: 肘を深く曲げる腕は、上腕の上げを 58 度までに自動補正
   for (const side of ['left', 'right']) {
     const ua = spec.tracks[`${side}UpperArm`];
