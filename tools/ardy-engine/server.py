@@ -228,14 +228,28 @@ def build_waypoint_conditions(waypoints, num_frames):
     return observed, mask
 
 
-def waypoint_duration(waypoints) -> float:
-    """経由地の合計距離から歩行前提の所要時間を見積もる (開始1秒+移動+停止余白2秒)。"""
+def _locomotion_speed(english: str) -> float:
+    """テキストから移動速度 (m/s) を推定する。経路制約のペース配分に使う。"""
+    t = english.lower()
+    if re.search(r"run|dash|sprint", t):
+        return 2.5
+    if re.search(r"jog", t):
+        return 1.8
+    if re.search(r"skip|hop", t):
+        return 1.4
+    if re.search(r"sneak|crawl|tip.?toe|creep|stagger", t):
+        return 0.5
+    return 1.0
+
+
+def waypoint_duration(waypoints, speed: float = 1.0) -> float:
+    """経由地の合計距離から所要時間を見積もる (開始1秒+移動+停止余白2秒)。"""
     prev, dist = (0.0, 0.0), 0.0
     for w in waypoints:
         p = (float(w["x"]), float(w["z"]))
         dist += ((p[0] - prev[0]) ** 2 + (p[1] - prev[1]) ** 2) ** 0.5
         prev = p
-    return max(4.0, min(MAX_DURATION, dist / 1.0 + 3.0))
+    return max(4.0, min(MAX_DURATION, dist / speed + 3.0))
 
 
 def _generate_motion_streaming(
@@ -463,17 +477,20 @@ def generate_spec(
     with GEN_LOCK, torch.no_grad():
         PROGRESS.update(active=True, stage="translate", started=time.time(), fraction=0.0, text=text)
         try:
-            # ウェイポイントがあれば、経路距離から所要時間の下限を決める
-            if waypoints and duration is None and not segments_req:
-                duration = waypoint_duration(waypoints)
-                print(f"waypoint duration: {duration:.1f}s ({len(waypoints)} points)", flush=True)
             segments, english, original = _resolve_segments(text, duration, segments_req)
             num_frames = sum(nf for _, nf in segments)
-            # セグメント計画 (GPT) が経由地の経路に対して短すぎる場合は比例拡大する
-            # (短いままだと経由地間を無理な速度で移動しようとして破綻する)
+            # 経由地がある場合、経路を回りきれる長さまで比例拡大する。
+            # 所要時間は動作の速度 (走る=2.5m/s、歩く=1m/s等) をテキストから推定して決める
             if waypoints:
-                needed = int(waypoint_duration(waypoints) * FPS) // PATCH * PATCH
-                if num_frames < needed:
+                speed = _locomotion_speed(" ".join(en for en, _ in segments))
+                needed = int(waypoint_duration(waypoints, speed) * FPS) // PATCH * PATCH
+                print(f"waypoints: {len(waypoints)} points, speed={speed}m/s -> min {needed / FPS:.1f}s", flush=True)
+                if len(segments) == 1 and duration is None:
+                    # 単一動作+経由地は経路所要時間ちょうどにする
+                    # (長すぎると速度が薄まり、走り指定でも早足になってしまう)
+                    segments = [(segments[0][0], needed)]
+                    num_frames = needed
+                elif num_frames < needed:
                     ratio = needed / num_frames
                     segments = [
                         (en, max(PATCH, int(nf * ratio) // PATCH * PATCH)) for en, nf in segments

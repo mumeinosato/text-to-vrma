@@ -236,7 +236,10 @@ async function generateMotionWithArdy(text, { onProgress } = {}) {
   onProgress?.(t('ardy.generating'));
   const stopProgress = startArdyProgressBar(url);
   const body = plan?.segments?.length ? { segments: plan.segments } : { text };
-  if (waypoints.length) body.waypoints = waypoints.map((w) => ({ x: w.x, z: w.z }));
+  // 経由地は「📍経由地モード」がONのときだけ有効 (OFF = 置いてあっても使わない)
+  if (waypointCheck.checked && waypoints.length) {
+    body.waypoints = waypoints.map((w) => ({ x: w.x, z: w.z }));
+  }
   let res;
   try {
     res = await fetch(`${url}/generate`, {
@@ -738,6 +741,9 @@ viewerWrap.addEventListener('contextmenu', (e) => {
 });
 waypointCheck.addEventListener('change', () => {
   waypointGuide.classList.toggle('hidden', !waypointCheck.checked);
+  // OFF時はマーカーも消して「経由地は使われない」ことを見た目で示す
+  viewer.setWaypointMarkers(waypointCheck.checked ? waypoints : []);
+  waypointClearBtn.classList.toggle('hidden', !waypointCheck.checked || waypoints.length === 0);
   if (waypointCheck.checked) {
     setStatus(t('wp.modeOn'), 'ok');
   }
