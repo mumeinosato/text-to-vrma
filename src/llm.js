@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 // llm.js — OpenAI API でテキストからモーション spec を生成する
 import { BONE_NAMES, EXPRESSION_PRESETS } from './vrmaBuilder.js';
 
@@ -339,7 +340,7 @@ export async function generateMotionWithOpenAI(
 
   // 2パス目: 自己修正 (失敗しても1パス目の結果を使う)
   if (refine) {
-    onProgress?.('生成したモーションを検証・修正中... (2パス目)');
+    onProgress?.(t('gen.refine2nd'));
     try {
       const refined = await callOpenAI(
         [
@@ -459,8 +460,8 @@ export async function generateMotionWithCodex(
 
   onProgress?.(
     refine
-      ? `Codex (${model}) がモーションを生成・自己修正中...`
-      : `Codex (${model}) がモーションを生成中...`
+      ? t('gen.codexRefine', { model })
+      : t('gen.codex', { model })
   );
   const spec = await window.codexBridge.generateMotion({
     model,

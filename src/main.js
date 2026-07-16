@@ -1,5 +1,6 @@
 // main.js — UI と各モジュールの結線
 import pkg from '../package.json';
+import { t, locale, setLocale, applyStaticI18n } from './i18n.js';
 import { Viewer } from './viewer.js';
 import { buildVRMA } from './vrmaBuilder.js';
 import { idleSpec } from './idleMotion.js';
@@ -39,6 +40,15 @@ const waypointClearBtn = $('waypointClearBtn');
 const waypointGuide = $('waypointGuide');
 const loopSelect = $('loopSelect');
 
+// --- UI言語 (日本語 / English / 中文 / 한국어) ---
+const langSelect = $('langSelect');
+langSelect.value = locale;
+langSelect.addEventListener('change', () => {
+  setLocale(langSelect.value); // 押した瞬間に画面全体へ即時反映 (リロードなし)
+  updateWaypointUI();
+});
+applyStaticI18n();
+
 // その場の動き (移動が少なく、終了時に開始位置付近へ戻る) ならループ向きと判定する
 function isLoopFriendly(spec) {
   const hips = spec.hips;
@@ -70,7 +80,7 @@ function waypointPathSeconds(points) {
 function updateWaypointUI() {
   viewer.setWaypointMarkers(waypoints);
   waypointClearBtn.classList.toggle('hidden', waypoints.length === 0);
-  waypointClearBtn.textContent = `経由地をクリア (${waypoints.length}個)`;
+  waypointClearBtn.textContent = t('wp.clearN', { n: waypoints.length });
 }
 const vrmBtn = $('vrmBtn');
 const vrmFile = $('vrmFile');
@@ -119,15 +129,15 @@ async function checkArdyHealth() {
     const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(3000) });
     const info = await res.json();
     if (info.status !== 'ok') throw new Error('unexpected response');
-    const ja = info.translator === 'ready' ? ' / 日本語OK' : '';
-    setArdyState(`✅ ${info.model} (${info.device === 'cpu' ? 'CPU' : 'GPU'}${ja}) 接続OK`, 'ok');
+    const ja = info.translator === 'ready' ? t('ardy.jaOK') : '';
+    setArdyState(t('ardy.connected', { model: info.model, device: info.device === 'cpu' ? 'CPU' : 'GPU', ja }), 'ok');
     ardyStartBtn.classList.add('hidden');
     return true;
   } catch {
     const hint = window.ardyBridge
-      ? '「エンジンを起動」を押してください。'
-      : 'tools/ardy-engine/server.py を起動してください。';
-    setArdyState(`❌ エンジン未起動。${hint}`, 'err');
+      ? t('ardy.hintStartBtn')
+      : t('ardy.hintManual');
+    setArdyState(t('ardy.notRunning', { hint }), 'err');
     ardyStartBtn.classList.toggle('hidden', !window.ardyBridge);
     return false;
   }
@@ -136,13 +146,13 @@ async function checkArdyHealth() {
 // LLM (OpenAI) 生成の進捗バー: ストリーミング受信文字数ベースの%表示
 function startLLMProgressBar() {
   genProgressBar.style.width = '0%';
-  genProgressText.textContent = 'GPTがモーションを設計中...';
+  genProgressText.textContent = t('llm.designing');
   genProgress.classList.remove('hidden');
   return {
     update(fraction, pass) {
       genProgressBar.style.width = `${Math.round(fraction * 100)}%`;
       genProgressText.textContent =
-        `GPTがモーションを${pass === 2 ? '自己修正' : '設計'}中... ${Math.round(fraction * 100)}%`;
+        t(pass === 2 ? 'llm.pass2' : 'llm.pass1', { pct: Math.round(fraction * 100) });
     },
     done() {
       genProgressBar.style.width = '100%';
@@ -154,7 +164,7 @@ function startLLMProgressBar() {
 // 生成中の進捗バー: エンジンの /progress をポーリングして残り時間を表示する
 function startArdyProgressBar(url) {
   genProgressBar.style.width = '0%';
-  genProgressText.textContent = 'エンジンに接続中...';
+  genProgressText.textContent = t('ardy.connecting');
   genProgress.classList.remove('hidden');
   const timer = setInterval(async () => {
     try {
@@ -163,14 +173,14 @@ function startArdyProgressBar(url) {
       if (!p.active) return;
       if (p.stage === 'translate') {
         genProgressBar.style.width = '3%';
-        genProgressText.textContent = '準備中 (翻訳・テキスト解析)...';
+        genProgressText.textContent = t('ardy.prep');
       } else if (p.stage === 'finalize') {
         genProgressBar.style.width = '100%';
-        genProgressText.textContent = '仕上げ処理中 (足滑り補正・変換)...';
+        genProgressText.textContent = t('ardy.finalize');
       } else {
         genProgressBar.style.width = `${Math.round(p.fraction * 100)}%`;
-        const eta = p.remaining != null ? ` (あと約${Math.max(1, Math.ceil(p.remaining))}秒)` : '';
-        genProgressText.textContent = `モーション生成中... ${Math.round(p.fraction * 100)}%${eta}`;
+        const eta = p.remaining != null ? t('ardy.eta', { s: Math.max(1, Math.ceil(p.remaining)) }) : '';
+        genProgressText.textContent = t('ardy.genProgress', { pct: Math.round(p.fraction * 100), eta });
       }
     } catch {
       // 一時的な取得失敗は無視して次のポーリングへ
@@ -193,7 +203,7 @@ async function generateMotionWithArdy(text, { onProgress } = {}) {
   const gptModel = localStorage.getItem('openai-model') || DEFAULT_OPENAI_MODEL;
   if (apiKey) {
     try {
-      onProgress?.('GPTが依頼を分析中 (エンジン選択・英訳・動作分割)...');
+      onProgress?.(t('ardy.analyzing'));
       plan = await planArdySegments(text, apiKey, gptModel, {
         waypointCount: waypoints.length,
         pathMeters: waypoints.length ? waypointPathSeconds(waypoints) - 2 : 0,
@@ -208,7 +218,7 @@ async function generateMotionWithArdy(text, { onProgress } = {}) {
   // (ただし経由地が置かれている場合は移動が主目的なのでARDYを維持)
   if (plan?.engine === 'keyframes' && waypoints.length > 0) plan.engine = 'ardy';
   if (plan?.engine === 'keyframes') {
-    onProgress?.('この依頼は精密ポーズ向きと判断 → GPTキーフレーム方式で生成中...');
+    onProgress?.(t('ardy.routed'));
     const progress = startLLMProgressBar();
     try {
       const spec = await generateMotionWithOpenAI(text, apiKey, gptModel, {
@@ -223,7 +233,7 @@ async function generateMotionWithArdy(text, { onProgress } = {}) {
     }
   }
 
-  onProgress?.('ARDYがモーションを生成中... (長さは内容から自動判断)');
+  onProgress?.(t('ardy.generating'));
   const stopProgress = startArdyProgressBar(url);
   const body = plan?.segments?.length ? { segments: plan.segments } : { text };
   if (waypoints.length) body.waypoints = waypoints.map((w) => ({ x: w.x, z: w.z }));
@@ -239,7 +249,7 @@ async function generateMotionWithArdy(text, { onProgress } = {}) {
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `ARDYエンジンがエラーを返しました (HTTP ${res.status})`);
+    throw new Error(err.error || t('err.ardyHttp', { code: res.status }));
   }
   const spec = await res.json();
   if (plan) spec.originalText = text;
@@ -256,18 +266,18 @@ async function startArdyEngine() {
   if (!window.ardyBridge) return;
   try {
     const status = await window.ardyBridge.start();
-    if (!status.running) throw new Error(status.lastError || 'エンジンを起動できませんでした。');
-    setArdyState('⏳ エンジン起動中... (初回は1〜2分かかります)');
+    if (!status.running) throw new Error(status.lastError || t('err.engineStart'));
+    setArdyState(t('ardy.starting'));
     for (let i = 0; i < 90; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       if (await checkArdyHealth()) return;
       const s = await window.ardyBridge.getStatus();
       if (!s.running) {
-        setArdyState(`❌ ${s.lastError || 'エンジンが終了しました。'}`, 'err');
+        setArdyState(`❌ ${s.lastError || t('ardy.exited')}`, 'err');
         return;
       }
     }
-    setArdyState('❌ エンジンの起動がタイムアウトしました。', 'err');
+    setArdyState(t('ardy.startTimeout'), 'err');
   } catch (e) {
     setArdyState(`❌ ${e.message}`, 'err');
   }
@@ -279,7 +289,7 @@ async function loadCodexModels() {
   for (const model of models) {
     const option = document.createElement('option');
     option.value = model.model;
-    option.textContent = `${model.displayName}${model.isDefault ? ' (推奨)' : ''}`;
+    option.textContent = `${model.displayName}${model.isDefault ? t('model.recommended') : ''}`;
     option.title = model.description;
     codexModelSelect.appendChild(option);
   }
@@ -296,16 +306,16 @@ async function refreshCodexStatus(providedStatus) {
     codexStatus = providedStatus || await codexBridge.getStatus();
     const account = codexStatus.account;
     if (!codexStatus.available) {
-      setCodexAuthState(codexStatus.error || 'Codex CLIを利用できません。', 'err');
+      setCodexAuthState(codexStatus.error || t('codex.unavailable'), 'err');
     } else if (account?.type === 'chatgpt') {
-      const identity = maskEmail(account.email) || 'ChatGPTアカウント';
+      const identity = maskEmail(account.email) || t('codex.account');
       setCodexAuthState(
-        `ログイン済み: ${identity}\nプラン: ${account.planType} / CLI: ${codexStatus.version}`,
+        t('codex.loggedIn', { id: identity, plan: account.planType, ver: codexStatus.version }),
         'ok'
       );
       await loadCodexModels();
     } else {
-      setCodexAuthState(`未ログイン / Codex CLI ${codexStatus.version}`);
+      setCodexAuthState(t('codex.loggedOut', { ver: codexStatus.version }));
       codexModelSelect.disabled = true;
     }
     codexLoginBtn.disabled = !codexStatus.available || account?.type === 'chatgpt';
@@ -354,21 +364,20 @@ const DEFAULT_MODEL_URLS = [
 ];
 
 async function init() {
-  setStatus('VRMモデルを読み込み中...');
+  setStatus(t('vrm.loadingModel'));
   for (const url of DEFAULT_MODEL_URLS) {
     try {
       await viewer.loadVRM(url);
       const name = url.split('/').pop();
-      vrmName.textContent = `${name} — 3Dビューへのドラッグ&ドロップでも差し替えできます。`;
-      setStatus('準備完了。テキストを入力して「モーション生成」を押してください。', 'ok');
+      vrmName.textContent = t('vrm.replaced', { name });
+      setStatus(t('ready'), 'ok');
       await playSpec(idleSpec(), { silent: true });
       return;
     } catch { /* 次の候補へ */ }
   }
-  vrmName.textContent = 'モデル未読込 — VRMファイルを開いてください。';
+  vrmName.textContent = t('vrm.none');
   setStatus(
-    '「VRMファイルを開く」から手持ちの .vrm を読み込んでください。\n' +
-    '(VRMモデルは VRoid Hub の AvatarSample などから無料で入手できます)',
+    t('vrm.hint'),
     'err'
   );
 }
@@ -381,8 +390,7 @@ async function playSpec(spec, { silent = false, seek = 0 } = {}) {
   exportBtn.disabled = false;
   if (!silent) {
     setStatus(
-      `再生中: ${spec.name}\n長さ: ${spec.duration.toFixed(1)}秒 / ループ: ${spec.loop ? 'あり' : 'なし'}\n` +
-      `「.vrma 保存」でファイルに書き出せます。`,
+      t('playing', { name: spec.name, dur: spec.duration.toFixed(1), loop: spec.loop ? t('loop.yes') : t('loop.no') }),
       'ok'
     );
   }
@@ -405,17 +413,17 @@ async function playHistoryItem(item) {
     await viewer.playVRMA(item.buffer.slice(0), item.loop);
     lastVRMA = { spec: item.spec, name: item.name };
     exportBtn.disabled = false;
-    setStatus(`再生中: ${item.name} (履歴)\n「${item.text}」`, 'ok');
+    setStatus(t('playing.hist', { name: item.name, text: item.text }), 'ok');
   } catch (e) {
     console.error(e);
-    setStatus(`エラー: ${e.message}`, 'err');
+    setStatus(t('error', { msg: e.message }), 'err');
   }
 }
 
 function renderHistory() {
   historyEl.innerHTML = '';
   if (history.length === 0) {
-    historyEl.innerHTML = '<p class="sub">まだ生成したモーションはありません。</p>';
+    historyEl.innerHTML = `<p class="sub">${t('history.empty')}</p>`;
     return;
   }
   for (const item of history) {
@@ -425,7 +433,7 @@ function renderHistory() {
     const play = document.createElement('button');
     play.className = 'play';
     play.textContent = '▶';
-    play.title = '再生';
+    play.title = t('hist.play');
     play.addEventListener('click', () => playHistoryItem(item));
 
     const name = document.createElement('span');
@@ -439,20 +447,20 @@ function renderHistory() {
 
     const save = document.createElement('button');
     save.textContent = '⬇';
-    save.title = '.vrma 保存';
+    save.title = t('hist.save');
     save.addEventListener('click', () => downloadVRMA(item));
 
     const copy = document.createElement('button');
     copy.textContent = '📋';
-    copy.title = 'モーションJSONをコピー (不具合報告・調整用)';
+    copy.title = t('hist.copy');
     copy.addEventListener('click', async () => {
       await navigator.clipboard.writeText(JSON.stringify(item.spec, null, 1));
-      setStatus('モーションJSONをクリップボードにコピーしました。', 'ok');
+      setStatus(t('json.copied'), 'ok');
     });
 
     const del = document.createElement('button');
     del.textContent = '✕';
-    del.title = '履歴から削除';
+    del.title = t('hist.delete');
     del.addEventListener('click', () => {
       const idx = history.indexOf(item);
       if (idx !== -1) history.splice(idx, 1);
@@ -481,25 +489,25 @@ function addHistory(spec, buffer, text) {
 generateBtn.addEventListener('click', async () => {
   const text = textInput.value.trim();
   if (!text) {
-    setStatus('テキストを入力してください。', 'err');
+    setStatus(t('err.noText'), 'err');
     return;
   }
   const authMode = authModeSelect.value;
   const apiKey = apiKeyInput.value.trim();
   if (authMode === 'api-key' && !apiKey) {
-    setStatus('OpenAI APIキーを入力してください。', 'err');
+    setStatus(t('err.noApiKey'), 'err');
     return;
   }
   if (authMode === 'codex' && codexStatus?.account?.type !== 'chatgpt') {
-    setStatus('先に「ChatGPTでログイン」からCodexを認証してください。', 'err');
+    setStatus(t('err.codexAuth'), 'err');
     return;
   }
   if (authMode === 'ardy' && !(await checkArdyHealth())) {
-    setStatus('ARDYエンジンに接続できません。ardy_server.py を起動してください。', 'err');
+    setStatus(t('err.ardyConn'), 'err');
     return;
   }
   if (!viewer.vrm) {
-    setStatus('先にVRMモデルを読み込んでください。', 'err');
+    setStatus(t('err.noVrm'), 'err');
     return;
   }
   generateBtn.disabled = true;
@@ -512,11 +520,11 @@ generateBtn.addEventListener('click', async () => {
     };
     let spec;
     if (authMode === 'ardy') {
-      setStatus('ARDYローカルエンジンがモーションを生成中...');
+      setStatus(t('ardy.generating'));
       spec = await generateMotionWithArdy(text, options);
     } else {
       const model = authMode === 'codex' ? codexModelSelect.value : apiModelSelect.value;
-      if (!model) throw new Error('利用可能なモデルがありません。');
+      if (!model) throw new Error(t('err.noModel'));
       if (authMode === 'api-key') {
         localStorage.setItem('openai-api-key', apiKey);
         localStorage.setItem('openai-model', model);
@@ -524,7 +532,7 @@ generateBtn.addEventListener('click', async () => {
         localStorage.setItem('codex-model', model);
       }
       localStorage.setItem('refine-enabled', refineCheck.checked ? '1' : '0');
-      setStatus(`${authMode === 'codex' ? 'Codex' : 'OpenAI'} (${model}) がモーションを生成中...`);
+      setStatus(t('gen.llm', { engine: authMode === 'codex' ? 'Codex' : 'OpenAI', model }));
       if (authMode === 'codex') {
         spec = await generateMotionWithCodex(text, model, options);
       } else {
@@ -549,22 +557,20 @@ generateBtn.addEventListener('click', async () => {
     addHistory(spec, buffer, text);
     if (spec.flavor) {
       setStatus(
-        `再生中: ${spec.name}\n長さ: ${spec.duration.toFixed(1)}秒 / ループ: ${spec.loop ? 'あり' : 'なし'}\n` +
-        `演出: ${spec.flavor}`,
+        t('playing', { name: spec.name, dur: spec.duration.toFixed(1), loop: spec.loop ? t('loop.yes') : t('loop.no') }) + `\n🎬 ${spec.flavor}`,
         'ok'
       );
     } else if (authMode === 'ardy') {
-      const jaNote = spec.originalText ? `\n自動英訳: ${spec.name}` : '';
-      const loopNote = spec.loop ? 'ループ再生' : '1回再生';
+      const jaNote = spec.originalText ? t('ja.note', { en: spec.name }) : '';
+      const loopNote = spec.loop ? t('loop.playing') : t('loop.once');
       setStatus(
-        `再生中: ${spec.originalText ?? spec.name}${jaNote}\n` +
-        `長さ: ${spec.duration.toFixed(1)}秒 / ${loopNote}${loopSelect.value === 'auto' ? ' (自動判定)' : ''} (ARDYローカルエンジン)`,
+        t('playing.ardy', { name: spec.originalText ?? spec.name, ja: jaNote, dur: spec.duration.toFixed(1), loop: loopNote, auto: loopSelect.value === 'auto' ? t('loop.autoJudged') : '' }),
         'ok'
       );
     }
   } catch (e) {
     console.error(e);
-    setStatus(`エラー: ${e.message}`, 'err');
+    setStatus(t('error', { msg: e.message }), 'err');
   } finally {
     generateBtn.disabled = false;
     waypointClearBtn.disabled = false;
@@ -581,26 +587,26 @@ exportBtn.addEventListener('click', () => {
   a.download = `${lastVRMA.name}.vrma`;
   a.click();
   URL.revokeObjectURL(a.href);
-  const exprNote = exprCheck.checked ? '表情トラック込み' : 'ボーンモーションのみ';
-  setStatus(`${lastVRMA.name}.vrma を保存しました (${exprNote})。\nVRMA対応アプリ (VRoid Hub, cluster 等) で利用できます。`, 'ok');
+  const exprNote = exprCheck.checked ? t('expr.included') : t('expr.bonesOnly');
+  setStatus(t('vrma.saved', { name: lastVRMA.name, note: exprNote }), 'ok');
 });
 
 // --- VRMアップロード ---
 async function loadVRMFile(file) {
   if (!file || !/\.vrm$/i.test(file.name)) {
-    setStatus('VRMファイル (.vrm) を選択してください。', 'err');
+    setStatus(t('err.pickVrm'), 'err');
     return;
   }
   const url = URL.createObjectURL(file);
   try {
-    setStatus(`${file.name} を読み込み中...`);
+    setStatus(t('file.loading', { name: file.name }));
     await viewer.loadVRM(url);
-    vrmName.textContent = `${file.name} — 3Dビューへのドラッグ&ドロップでも読み込めます。`;
-    setStatus(`${file.name} を読み込みました。`, 'ok');
+    vrmName.textContent = t('vrm.replaced', { name: file.name });
+    setStatus(t('file.loaded', { name: file.name }), 'ok');
     await playSpec(idleSpec(), { silent: true });
   } catch (e) {
     console.error(e);
-    setStatus(`VRMの読み込みに失敗しました: ${e.message}`, 'err');
+    setStatus(t('err.vrmLoad', { msg: e.message }), 'err');
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -615,13 +621,13 @@ vrmFile.addEventListener('change', () => {
 // --- 外部VRMAの読み込み再生 (ドラッグ&ドロップ) ---
 async function loadVRMAFile(file) {
   try {
-    setStatus(`${file.name} を読み込み中...`);
+    setStatus(t('file.loading', { name: file.name }));
     const buf = await file.arrayBuffer();
     await viewer.playVRMA(buf, true);
-    setStatus(`${file.name} を再生中です。`, 'ok');
+    setStatus(t('file.playing', { name: file.name }), 'ok');
   } catch (e) {
     console.error(e);
-    setStatus(`VRMAの読み込みに失敗しました: ${e.message}`, 'err');
+    setStatus(t('err.vrmaLoad', { msg: e.message }), 'err');
   }
 }
 
@@ -672,8 +678,8 @@ async function checkForUpdate() {
     const banner = document.createElement('div');
     banner.id = 'updateBanner';
     banner.innerHTML =
-      `🔔 新しいバージョン v${remote} が公開されています (現在 v${pkg.version}) ` +
-      `<a href="${RELEASES_URL}" target="_blank" rel="noopener">ダウンロード</a> ` +
+      `${t('update.msg', { v: remote, cur: pkg.version })}` +
+      `<a href="${RELEASES_URL}" target="_blank" rel="noopener">${t('update.dl')}</a> ` +
       `<button type="button">×</button>`;
     banner.querySelector('button').addEventListener('click', () => {
       localStorage.setItem('update-dismissed', remote);
@@ -702,7 +708,7 @@ viewerWrap.addEventListener('pointerdown', (e) => {
 viewerWrap.addEventListener('click', (e) => {
   if (!waypointCheck.checked || authModeSelect.value !== 'ardy') return;
   if (generateBtn.disabled) {
-    setStatus('生成中は経由地を変更できません。完了までお待ちください。', 'err');
+    setStatus(t('wp.locked'), 'err');
     return;
   }
   if (pointerDownAt && Math.hypot(e.clientX - pointerDownAt.x, e.clientY - pointerDownAt.y) > 5) return;
@@ -710,7 +716,7 @@ viewerWrap.addEventListener('click', (e) => {
   if (!p) return;
   const est = waypointPathSeconds([...waypoints, { x: p.x, z: p.z }]);
   if (est > MAX_MOTION_SECONDS) {
-    setStatus(`経路が長すぎます (推定${Math.round(est)}秒 > 上限${MAX_MOTION_SECONDS}秒)。これ以上は置けません。`, 'err');
+    setStatus(t('wp.tooLong', { est: Math.round(est), max: MAX_MOTION_SECONDS }), 'err');
     return;
   }
   waypoints.push({ x: p.x, z: p.z });
@@ -728,19 +734,19 @@ viewerWrap.addEventListener('contextmenu', (e) => {
   if (generateBtn.disabled) return; // 生成中は変更不可
   waypoints.pop();
   updateWaypointUI();
-  setStatus(`経由地を1つ取り消しました (残り${waypoints.length}個)。`, 'ok');
+  setStatus(t('wp.undone', { n: waypoints.length }), 'ok');
 });
 waypointCheck.addEventListener('change', () => {
   waypointGuide.classList.toggle('hidden', !waypointCheck.checked);
   if (waypointCheck.checked) {
-    setStatus('経由地モード: 3Dビューの床をクリックして経由地を置いてください。', 'ok');
+    setStatus(t('wp.modeOn'), 'ok');
   }
 });
 waypointClearBtn.addEventListener('click', () => {
   if (generateBtn.disabled) return; // 生成中は変更不可
   waypoints.length = 0;
   updateWaypointUI();
-  setStatus('経由地をクリアしました。', 'ok');
+  setStatus(t('wp.cleared'), 'ok');
 });
 ardyStartBtn.addEventListener('click', () => {
   ardyStartBtn.disabled = true;

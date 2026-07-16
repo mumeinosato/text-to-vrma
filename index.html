@@ -31,6 +31,10 @@
     #panel > * { flex-shrink: 0; }
     h1 { font-size: 17px; letter-spacing: 0.02em; }
     h1 span { color: var(--accent); }
+    #langSelect {
+      float: right; font-size: 11px; padding: 2px 4px;
+      background: #1a1e27; color: #c6cbd6; border: 1px solid #2a3040; border-radius: 6px;
+    }
     .sub { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
     textarea {
       width: 100%; height: 84px; resize: vertical;
@@ -141,90 +145,97 @@
 </head>
 <body>
   <div id="panel">
-    <h1>Text <span>To</span> VRMA</h1>
-    <p class="sub">テキストからVRMアニメーション (.vrma) を生成して、その場でキャラクターを動かします。</p>
+    <h1>Text <span>To</span> VRMA
+      <select id="langSelect" title="Language">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+        <option value="ko">한국어</option>
+      </select>
+    </h1>
+    <p class="sub" data-i18n="tagline">テキストからVRMアニメーション (.vrma) を生成して、その場でキャラクターを動かします。</p>
 
-    <div class="section-title">1. VRMモデル</div>
-    <button id="vrmBtn" class="primary-outline">📂 VRMファイルを開く</button>
+    <div class="section-title" data-i18n="sec.model">1. VRMモデル</div>
+    <button id="vrmBtn" class="primary-outline" data-i18n="btn.openVrm">📂 VRMファイルを開く</button>
     <input type="file" id="vrmFile" accept=".vrm" style="display:none" />
-    <p class="sub" id="vrmName">読み込み中... — 3Dビューへのドラッグ&amp;ドロップでも読み込めます。</p>
+    <p class="sub" id="vrmName" data-i18n="vrm.initial">読み込み中... — 3Dビューへのドラッグ&amp;ドロップでも読み込めます。</p>
 
-    <div class="section-title">2. 🤖 生成エンジン</div>
+    <div class="section-title" data-i18n="sec.engine">2. 🤖 生成エンジン</div>
     <select id="authMode">
-      <option value="api-key">OpenAI APIキー</option>
-      <option value="codex">Codexサブスクリプション</option>
-      <option value="ardy">ARDYローカルエンジン</option>
+      <option value="api-key" data-i18n="engine.apiKey">OpenAI APIキー</option>
+      <option value="codex" data-i18n="engine.codex">Codexサブスクリプション</option>
+      <option value="ardy" data-i18n="engine.ardy">ARDYローカルエンジン</option>
     </select>
     <div id="apiSettings" class="auth-box">
-      <input type="password" id="apiKey" placeholder="OpenAI APIキー (sk-...)" />
+      <input type="password" id="apiKey" placeholder="OpenAI APIキー (sk-...)" data-i18n-placeholder="apiKey.ph" />
       <select id="apiModelSelect">
-        <option value="gpt-5.6-sol">gpt-5.6-sol (最高精度)</option>
-        <option value="gpt-5.6-terra">gpt-5.6-terra (バランス)</option>
-        <option value="gpt-5.6-luna">gpt-5.6-luna (低コスト)</option>
+        <option value="gpt-5.6-sol" data-i18n="model.best">gpt-5.6-sol (最高精度)</option>
+        <option value="gpt-5.6-terra" data-i18n="model.balanced">gpt-5.6-terra (バランス)</option>
+        <option value="gpt-5.6-luna" data-i18n="model.low">gpt-5.6-luna (低コスト)</option>
       </select>
     </div>
     <div id="codexSettings" class="auth-box hidden">
-      <div id="codexAuthState" class="auth-state">Codex CLIを確認中...</div>
+      <div id="codexAuthState" class="auth-state" data-i18n="codex.checking">Codex CLIを確認中...</div>
       <select id="codexModelSelect" disabled>
-        <option value="">ログイン後にモデルを取得します</option>
+        <option value="" data-i18n="codex.afterLogin">ログイン後にモデルを取得します</option>
       </select>
       <div class="auth-actions">
-        <button id="codexLoginBtn" class="primary-outline">ChatGPTでログイン</button>
-        <button id="codexLogoutBtn" disabled>ログアウト</button>
+        <button id="codexLoginBtn" class="primary-outline" data-i18n="btn.codexLogin">ChatGPTでログイン</button>
+        <button id="codexLogoutBtn" disabled data-i18n="btn.codexLogout">ログアウト</button>
       </div>
     </div>
     <div id="ardySettings" class="auth-box hidden">
-      <div id="ardyState" class="auth-state">エンジン未確認</div>
+      <div id="ardyState" class="auth-state" data-i18n="ardy.unknown">エンジン未確認</div>
       <div class="auth-actions">
-        <button id="ardyStartBtn" class="primary-outline hidden">エンジンを起動</button>
+        <button id="ardyStartBtn" class="primary-outline hidden" data-i18n="btn.engineStart">エンジンを起動</button>
       </div>
-      <label class="check" title="ONにすると3Dビューの床をクリックして経由地を置けます。キャラクターは経由地を順番に通るように動きます。右クリックで1つ取り消し。">
-        <input type="checkbox" id="waypointCheck" /> 📍 経由地モード (床クリックで配置)
+      <label class="check" title="ONにすると3Dビューの床をクリックして経由地を置けます。キャラクターは経由地を順番に通るように動きます。右クリックで1つ取り消し。" data-i18n-title="wp.labelTitle">
+        <input type="checkbox" id="waypointCheck" /> <span data-i18n="wp.label">📍 経由地モード (床クリックで配置)</span>
       </label>
       <div class="auth-actions">
-        <button id="waypointClearBtn" class="hidden">経由地をクリア</button>
+        <button id="waypointClearBtn" class="hidden" data-i18n="wp.clear">経由地をクリア</button>
       </div>
-      <p class="sub" title="全身運動はNVIDIAのモーションAI、精密なポーズ指定はGPTキーフレームに自動で振り分けます (APIキー保存時)。APIキーがない場合はARDY単体+ローカル英訳で動きます。">ARDY (体) × GPT (頭) のハイブリッド。日本語OK、長さ・表情は自動。</p>
+      <p class="sub" title="全身運動はNVIDIAのモーションAI、精密なポーズ指定はGPTキーフレームに自動で振り分けます (APIキー保存時)。APIキーがない場合はARDY単体+ローカル英訳で動きます。" data-i18n="ardy.desc" data-i18n-title="ardy.descTitle">ARDY (体) × GPT (頭) のハイブリッド。日本語OK、長さ・表情は自動。</p>
       <details>
-        <summary class="sub">詳細設定</summary>
+        <summary class="sub" data-i18n="adv">詳細設定</summary>
         <input type="text" id="ardyUrl" value="http://127.0.0.1:2337" title="ARDYエンジンサーバーのURL" style="width:100%" />
       </details>
     </div>
-    <label class="check" title="生成後にもう1パス、可動域・軌道・緩急のセルフレビューを行って品質を上げます。時間とAPIコストは約2倍になります。">
+    <label class="check" title="生成後にもう1パス、可動域・軌道・緩急のセルフレビューを行って品質を上げます。時間とAPIコストは約2倍になります。" data-i18n-title="refine.title">
       <input type="checkbox" id="refineCheck" checked />
-      🔍 自己修正 (2パス生成で品質向上)
+      <span data-i18n="refine.label">🔍 自己修正 (2パス生成で品質向上)</span>
     </label>
-    <div class="section-title">3. モーションをテキストで指示</div>
-    <textarea id="textInput" placeholder="例: その場で歩く&#10;例: 喜んでジャンプする&#10;例: 手を振る&#10;例: 悲しそうにうつむく"></textarea>
-    <label class="check" title="生成したモーションを繰り返し再生するか。自動は、エンジンの判断 (LLMモード) または動きの内容 (ARDY: その場の動きならループ、移動する動きなら1回) で決まります。">
-      ループ再生:
+    <div class="section-title" data-i18n="sec.text">3. モーションをテキストで指示</div>
+    <textarea id="textInput" placeholder="例: その場で歩く&#10;例: 喜んでジャンプする&#10;例: 手を振る&#10;例: 悲しそうにうつむく" data-i18n-placeholder="input.ph"></textarea>
+    <label class="check" title="生成したモーションを繰り返し再生するか。自動は、エンジンの判断 (LLMモード) または動きの内容 (ARDY: その場の動きならループ、移動する動きなら1回) で決まります。" data-i18n-title="loop.title">
+      <span data-i18n="loop.label">ループ再生:</span>
       <select id="loopSelect" style="flex:1">
-        <option value="auto">自動</option>
-        <option value="on">常にループ</option>
-        <option value="off">1回だけ再生</option>
+        <option value="auto" data-i18n="loop.auto">自動</option>
+        <option value="on" data-i18n="loop.on">常にループ</option>
+        <option value="off" data-i18n="loop.off">1回だけ再生</option>
       </select>
     </label>
-    <button id="generateBtn">▶ モーション生成 &amp; 再生</button>
+    <button id="generateBtn" data-i18n="btn.generate">▶ モーション生成 &amp; 再生</button>
     <div id="genProgress" class="hidden">
       <div class="gen-progress-track"><div id="genProgressBar" class="gen-progress-bar"></div></div>
       <p class="sub" id="genProgressText"></p>
     </div>
 
-    <button id="exportBtn" disabled>⬇ .vrma 保存</button>
+    <button id="exportBtn" disabled data-i18n="btn.export">⬇ .vrma 保存</button>
     <label class="check">
       <input type="checkbox" id="exprCheck" checked />
-      😊 表情を含めて保存 (対応アプリでのみ再生されます)
+      <span data-i18n="expr.label">😊 表情を含めて保存 (対応アプリでのみ再生されます)</span>
     </label>
 
-    <div id="status">準備中...</div>
+    <div id="status" data-i18n="status.preparing">準備中...</div>
 
-    <div class="section-title">生成履歴</div>
-    <div id="history"><p class="sub">まだ生成したモーションはありません。</p></div>
+    <div class="section-title" data-i18n="sec.history">生成履歴</div>
+    <div id="history"><p class="sub" data-i18n="history.empty">まだ生成したモーションはありません。</p></div>
   </div>
 
   <div id="viewerWrap">
     <canvas id="canvas"></canvas>
-    <div id="waypointGuide" class="hidden">📍 床クリック: 経由地を追加 / 右クリック: 1つ取り消し — キャラは番号順に通ります</div>
+    <div id="waypointGuide" class="hidden" data-i18n="wp.guide">📍 床クリック: 経由地を追加 / 右クリック: 1つ取り消し — キャラは番号順に通ります</div>
   </div>
 
   <script type="module" src="/src/main.js"></script>
