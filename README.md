@@ -2,12 +2,22 @@
 
 ![デモ: テキストからモーション生成](video/demo.gif)
 
-テキストを入力すると、OpenAI API または Codex サブスクリプションがキーフレームを設計し、
+テキストを入力すると AI がモーションを生成し、
 **VRMA (VRM Animation / `.vrma`)** ファイルをブラウザ内で生成して、
 その場で VRM キャラクターを動かす Web アプリです。
 生成した `.vrma` はファイルとして保存でき、VRMA 対応アプリでそのまま利用できます。
 
 例:「その場で歩く」「喜んでジャンプする」「手を振る」「悲しそうにうつむく」
+
+生成エンジンは2種類から選べます:
+
+| エンジン | 特徴 | 必要なもの |
+| --- | --- | --- |
+| **LLMキーフレーム** (OpenAI API / Codex) | 正確なポーズ・手指・表情の指定が得意。セットアップ不要でどのPCでも動く | APIキー または Codexプラン |
+| **ARDYローカルエンジン** (v1.1〜) | NVIDIAのモーション生成AI [ARDY](https://github.com/nv-tlabs/ardy) をローカル実行。歩行・ダンス・ジャンプ等の全身運動が**モーションキャプチャ品質**。生成無制限・オフライン動作 | 追加セットアップ (下記) |
+
+ARDYモードは **GPT (頭) × ARDY (体) のハイブリッド**として動作し、APIキーがあれば
+依頼内容に応じて2つのエンジンを自動で使い分けます。
 
 モーションと同時に**表情** (笑顔・悲しみ・驚き・まばたき等) も生成されます。
 `.vrma` 保存時に「表情を含める / 含めない (ボーンモーションのみ)」を選択できます。
@@ -51,12 +61,64 @@ npm run dev
 3. テキストを入力して「▶ モーション生成 & 再生」 (Ctrl+Enter でも可)
    - 「🔍 自己修正」ON (デフォルト) では生成後にもう1パス、可動域・軌道・緩急の
      セルフレビューを行い品質を上げます (API呼び出しが2回になります)
+   - 「ループ再生」で 自動 / 常にループ / 1回だけ を選択できます
 4. 「⬇ .vrma 保存」で生成アニメーションをファイルに書き出し
+
+## ARDYローカルエンジン (オプション)
+
+NVIDIA Research の text-to-motion モデル
+[ARDY](https://research.nvidia.com/labs/sil/projects/ardy/) (SIGGRAPH 2026) を
+ローカルで動かし、モーションキャプチャ品質の全身モーションを生成するモードです。
+
+**できること:**
+
+- 歩く・走る・踊る・ジャンプ・格闘などの全身運動を、実際の人間のモーション
+  キャプチャデータで学習したAIが生成 (重心移動・勢い・足の接地が本物らしい)
+- **日本語プロンプトOK** — ローカル翻訳 (FuguMT) で自動英訳。
+  OpenAI APIキーが保存済みなら GPT が英訳+連続動作の分割まで行い、精度が上がります
+- **📍 経由地モード** — 3Dビューの床をクリックして経由地を置くと、
+  キャラクターがその順番に通るモーションを生成 (右クリックで1つ取り消し)
+- モーションの長さ・表情・ループ可否は内容から自動判断 (長さは最長60秒)
+- 生成回数無制限・完全ローカル (セットアップ後はオフラインで動作)
+
+**動作要件と速度:**
+
+| | 最低 | 推奨 |
+| --- | --- | --- |
+| OS | Windows 10/11 64bit | 同左 |
+| RAM | 16GB | 32GB+ |
+| ディスク | 35GB | 同左 |
+| GPU | 不要 (CPUで1回数十秒) | NVIDIA GPU 6GB+ (1回数秒) |
+
+**セットアップ** (Python 3.10+ と git が必要。約20GBダウンロードします):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\ardy-engine\install.ps1
+```
+
+完了後、エンジンを起動してからアプリの「ARDYローカルエンジン」モードを選択します。
+詳細・手動起動・APIは [tools/ardy-engine/README.md](tools/ardy-engine/README.md) を参照してください。
+
+本機能は Meta Llama 3 をテキストエンコーダとして利用しています。**Built with Meta Llama 3**
 
 ## アーキテクチャ
 
 ```text
+[LLMキーフレームモード]
 テキスト ── OpenAI API / Codex CLI ──▶ モーション spec (ボーン別オイラー角キーフレーム JSON)
+
+[ARDYモード]
+テキスト ── GPT (英訳・動作分割・エンジン振り分け) ──▶ ARDYエンジンサーバー (localhost:2337)
+              │                                        │ 拡散モデルで20fpsモーション生成
+              └ APIキーなしならローカル翻訳            │ → 足滑り補正 → VRMリターゲット
+                                                       ▼
+                                          モーション spec (共通フォーマット)
+```
+
+spec 以降は両モード共通:
+
+```text
+                          モーション spec
                                    │
                                    ▼
               vrmaBuilder.js ── glTF + VRMC_vrm_animation 拡張 → GLB (.vrma)
@@ -72,8 +134,13 @@ npm run dev
 | `src/viewer.js` | three.js シーン / VRM ロード / VRMA 再生 |
 | `src/idleMotion.js` | 待機モーション (呼吸) |
 | `src/main.js` | UI 結線 |
+| `src/autoExpressions.js` | ARDYモード用: 感情語からの表情自動付与 + まばたき |
 | `electron/codex-client.cjs` | Codex app-server接続 / ChatGPT認証 / モデル取得 / 一時スレッドでの生成 |
+| `electron/ardy-client.cjs` | ARDYエンジンサーバーの起動・監視 (デスクトップ版) |
 | `electron/preload.cjs` | 認証情報を公開しない限定IPCブリッジ |
+| `tools/ardy-engine/server.py` | ARDY常駐サーバー: 生成・日本語翻訳・経由地制約・進捗API |
+| `tools/ardy-engine/retarget.py` | ARDY Coreスケルトン → VRM Humanoid リターゲット |
+| `tools/ardy-engine/install.ps1` | エンジンのワンコマンドセットアップ |
 
 ## モーション spec フォーマット
 
@@ -114,6 +181,11 @@ LLM が生成する中間表現です:
   Codexサブスクリプションの本ツールでの利用が OpenAI の利用規約・ポリシー上
   許容されるかは利用者自身でご確認ください (利用は自己責任です)
 - アプリ内のCodexログアウトは、このPC上のCodex CLI全体のログイン状態へ影響します
+- ARDYローカルエンジンは実験的機能です。モデルの性質上、同じテキストでも生成のたびに
+  違うモーションになります (気に入らなければ再生成してください)。
+  モデル重み (NVIDIA ARDY / Meta Llama 3 / FuguMT) は本リポジトリに含まれず、
+  セットアップ時に各配布元 (Hugging Face) から利用者自身がダウンロードします。
+  各モデルのライセンスは [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください
 - 生成される `.vrma` の利用は各自の責任で行ってください
 - **免責事項**: 本ツールは現状のまま・無保証で提供されます。本ツールの利用
   または利用不能により生じたいかなる損害 (API 利用料、データの損失、
@@ -139,6 +211,11 @@ LLM が生成する中間表現です:
   なお MIT ライセンスの条件として、コードのコピー・再配布時には上記の著作権表示と
   ライセンス文の同梱が必要です。
 
+- ARDYローカルエンジンが利用する外部モデルのライセンス:
+  - NVIDIA ARDY — コード: Apache-2.0 / 重み: NVIDIA Open Model Agreement (商用利用可)
+  - Meta Llama 3 — Meta Llama 3 Community License。本機能は **Built with Meta Llama 3**
+  - FuguMT (日英翻訳) — CC BY-SA 4.0
+  - 詳細は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照
 - 同梱の AvatarSample モデル (© pixiv Inc.) は **MIT ライセンスの対象外**です。
   ピクシブ株式会社の [AvatarSample A〜Z 利用条件](https://vroid.pixiv.help/hc/ja/articles/4402394424089-AvatarSample-A-Z)
   が適用されます (無償利用・再配布可 / **有償での再配布と CC0 としての配布は禁止**)。

@@ -28,3 +28,21 @@ respective rights holders.
 
 サンプルモデルはデモおよび動作確認の目的でのみ同梱されています。
 サンプルモデルに関する著作権およびその他の権利は、それぞれの権利者に帰属します。
+
+---
+
+## ARDY ローカルエンジン (tools/ardy-engine) が利用する外部モデル
+
+ARDYローカルエンジン機能は、以下のモデル・ソフトウェアを利用します。
+モデル重みは本リポジトリに同梱されず、セットアップ時に各配布元 (Hugging Face) から取得されます。
+
+- **NVIDIA ARDY** (nv-tlabs/ardy) — コード: Apache License 2.0 /
+  モデル重み: NVIDIA Open Model Agreement
+  <https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-agreement/>
+- **Meta Llama 3 (Meta-Llama-3-8B-Instruct)** — Meta Llama 3 Community License
+  <https://llama.meta.com/llama3/license>
+  本機能は Meta Llama 3 を利用して構築されています。**Built with Meta Llama 3**
+  "Meta Llama 3 is licensed under the Meta Llama 3 Community License,
+  Copyright © Meta Platforms, Inc. All Rights Reserved."
+- **LLM2Vec** (McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp / -supervised) — MIT License
+- **FuguMT** (staka/fugumt-ja-en、日本語→英語翻訳) — CC BY-SA 4.0
