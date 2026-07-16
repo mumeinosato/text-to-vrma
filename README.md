@@ -1,5 +1,7 @@
 # Text-To-VRMA — VRM特化型Text-To-Motionツール
 
+[![GitHub Sponsors](https://img.shields.io/badge/♥_Sponsor-支援する-ea4aaa?logo=githubsponsors)](https://github.com/sponsors/Kirakun0328)
+
 ![デモ: テキストからモーション生成](video/demo.gif)
 
 テキストを入力すると AI がモーションを生成し、
@@ -190,6 +192,36 @@ LLM が生成する中間表現です:
 - **免責事項**: 本ツールは現状のまま・無保証で提供されます。本ツールの利用
   または利用不能により生じたいかなる損害 (API 利用料、データの損失、
   生成物に起因するトラブル等を含む) についても、開発者は一切の責任を負いません
+
+## 💖 支援のお願い / Support This Project
+
+**Text-To-VRMA は、個人開発の無料オープンソースです。**
+
+「テキストを打つだけで、誰でも自分のキャラクターを動かせる」——
+その世界を目指して、NVIDIAの最新モーションAI (ARDY) の統合のような挑戦も含め、
+これからも便利で使いやすいオープンソースを公開していく予定です。
+
+正直に書くと、いまは職を離れ、生活的に厳しい状況の中で開発を続けています。
+それでも作りたいものがたくさんあります。もし本ツールが役に立ったなら、
+応援・ご支援をいただけるととても励みになります 🙇
+
+---
+
+**Text-To-VRMA is free & open-source, built by an independent developer in Japan.**
+
+The goal: anyone can bring their VRM character to life just by typing —
+powered by state-of-the-art motion AI, running on your own PC, free forever.
+
+I'll be honest: I'm currently between jobs and building this through financially
+difficult times. But there is so much more I want to create — more open-source
+tools for the VRM / VTuber / creative community.
+
+If this tool helps you, or you simply want to see more projects like it,
+your support genuinely keeps this work (and its developer) going 💚
+
+### **[❤️ GitHub Sponsors — github.com/sponsors/Kirakun0328](https://github.com/sponsors/Kirakun0328)**
+
+スターを付けてもらえるだけでも大きな励みになります! / Even a ⭐ on this repo means a lot!
 
 ## 開発者
 
