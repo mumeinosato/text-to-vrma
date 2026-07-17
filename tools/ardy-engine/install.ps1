@@ -165,14 +165,44 @@ if ($torchOut -notmatch 'torch-ok') {
     $torchOut = Test-TorchImport
 }
 if ($torchOut -notmatch 'torch-ok') {
+    Write-Host "修復 (4/4): Visual C++ ランタイムを公式サイトから直接インストールします..." -ForegroundColor Yellow
+    try {
+        $vcExe = Join-Path $env:TEMP 'vc_redist.x64.exe'
+        Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile $vcExe -UseBasicParsing
+        Start-Process $vcExe -ArgumentList '/install','/passive','/norestart' -Wait
+        $torchOut = Test-TorchImport
+    } catch {
+        Write-Host "(直接インストールに失敗: $($_.Exception.Message))" -ForegroundColor DarkGray
+    }
+}
+if ($torchOut -notmatch 'torch-ok') {
+    # 原因特定のための診断情報を収集して表示する
+    Write-Host ""
+    Write-Host "--- 診断情報 (問い合わせ時にこのブロックを丸ごと貼ってください) ---" -ForegroundColor Cyan
+    $eap2 = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    try {
+        $os = Get-CimInstance Win32_OperatingSystem
+        Write-Host ("OS: " + $os.Caption + " build " + $os.BuildNumber)
+        $cpu = Get-CimInstance Win32_Processor
+        Write-Host ("CPU: " + $cpu.Name)
+        Write-Host ("メモリ: {0:N1} GB" -f ($os.TotalVisibleMemorySize / 1MB))
+        $pf = Get-CimInstance Win32_PageFileUsage
+        Write-Host ("ページファイル: " + $(if ($pf) { "有効 ($($pf.AllocatedBaseSize) MB)" } else { "無効 ← これが原因の可能性大" }))
+        $vc = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64' -ErrorAction SilentlyContinue
+        Write-Host ("VC++ランタイム: " + $(if ($vc) { $vc.Version } else { "未検出 ← 要インストール" }))
+        & $venvPy -m pip install py-cpuinfo --quiet 2>&1 | Out-Null
+        $avx = (& $venvPy -c "import cpuinfo; f=cpuinfo.get_cpu_info().get('flags',[]); print('avx2:', 'avx2' in f)" 2>&1) | Out-String
+        Write-Host ("CPU拡張命令 " + $avx.Trim() + $(if ($avx -match 'False') { " ← AVX2非対応CPUではPyTorch公式版は動きません" } else { "" }))
+    } catch {}
+    $ErrorActionPreference = $eap2
+    Write-Host "-------------------------------------------------------------" -ForegroundColor Cyan
     throw ("PyTorchを起動できませんでした。エラー内容:`n" + $torchOut.Trim() + "`n`n" +
-           "確認事項 (上から順にお試しください):`n" +
-           "  1. Visual C++ 再頒布可能パッケージ (x64) を手動インストール:`n" +
-           "     https://aka.ms/vs/17/release/vc_redist.x64.exe`n" +
-           "  2. Windows Update を最新にして再起動`n" +
-           "  3. 仮想メモリ (ページファイル) が無効になっていれば有効化`n" +
-           "  4. NVIDIAドライバを最新に更新`n" +
-           "その後もう一度このセットアップを実行してください (続きから再開します)。")
+           "次をお試しください (重要な順):`n" +
+           "  1. ★PCを再起動して、もう一度このセットアップを実行★`n" +
+           "     (ランタイム更新は再起動後に反映されることがあります)`n" +
+           "  2. 上の診断情報で「無効」「未検出」「False」が出ていればその項目を対処`n" +
+           "  3. Windows Update を最新化`n" +
+           "それでも解決しない場合は、上の診断情報とエラー内容を添えてご連絡ください。")
 }
 Write-Host "PyTorch: OK ($TorchVer)" -ForegroundColor Green
 
