@@ -78,9 +78,18 @@ class ArdyClient {
     const args = [serverScript, '--port', String(config.port)];
     if (config.mergedBase) args.push('--merged-base', config.mergedBase);
     this.lastError = null;
+    // PATHを最小構成に洗浄して起動する: ユーザーのPATHに他のPyTorch/CUDA/conda
+    // 環境があると、そちらのDLLが混ざって WinError 1114 (DLL初期化失敗) になるため
+    const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+    const cleanPath = [
+      path.dirname(config.pythonExe),
+      path.join(systemRoot, 'System32'),
+      systemRoot,
+      path.join(systemRoot, 'System32', 'Wbem'),
+    ].join(';');
     this.child = spawn(config.pythonExe, args, {
       cwd: this.engineDir,
-      env: { ...process.env, TEXT_ENCODER_DEVICE: config.textEncoderDevice },
+      env: { ...process.env, PATH: cleanPath, TEXT_ENCODER_DEVICE: config.textEncoderDevice },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });

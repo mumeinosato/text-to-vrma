@@ -106,6 +106,20 @@ if (-not (Test-Path $venvPy)) {
 }
 & $venvPy -m pip install --upgrade pip --quiet
 
+# PATHを最小構成に洗浄する: 他のPyTorch/CUDA/conda環境がPATHにあると、
+# そちらのDLLが混ざって読み込まれ WinError 1114 (DLL初期化失敗) の原因になる
+$gitDir = try { Split-Path (Get-Command git -ErrorAction SilentlyContinue).Source } catch { $null }
+$cleanPath = @(
+    $mingwBin,
+    (Split-Path $venvPy),
+    "$env:SystemRoot\System32",
+    "$env:SystemRoot",
+    "$env:SystemRoot\System32\Wbem",
+    "$env:SystemRoot\System32\WindowsPowerShell\v1.0"
+)
+if ($gitDir) { $cleanPath += $gitDir }
+$env:PATH = ($cleanPath -join ';')
+
 Write-Host "[4/5] AIエンジンを構築しています... (数GBのダウンロード)" -ForegroundColor Green
 # PyTorchは動作検証済みバージョンに固定する (最新版は環境により WinError 1114 等の
 # 初期化不具合が報告されるため、開発環境で確認した 2.11.0 を使う)
@@ -210,7 +224,6 @@ $ardyRepo = Join-Path $EngineRoot 'ardy'
 if (-not (Test-Path "$ardyRepo\setup.py")) {
     & $git clone --depth 1 https://github.com/nv-tlabs/ardy.git $ardyRepo
 }
-$env:PATH = "$mingwBin;$env:PATH"
 & $venvPy -m pip install cmake sentencepiece --quiet
 Push-Location $ardyRepo
 & $venvPy -m pip install -e .
