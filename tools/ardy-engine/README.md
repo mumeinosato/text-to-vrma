@@ -32,6 +32,7 @@ bash tools/ardy-engine/install_mac.sh
 ```
 
 macOSでHomebrewが未導入の場合は、セットアップ中に自動でインストールされます。
+macOS対応は [@emadurandal](https://github.com/emadurandal) さんのコントリビュートによるものです。
 
 Python 3.10+ と git が必要です。ダウンロード合計約20GBのため時間がかかります。
 完了後、アプリの「ARDYローカルエンジン」モードの「エンジンを起動」ボタンで利用できます。
