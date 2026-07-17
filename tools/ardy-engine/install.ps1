@@ -107,14 +107,25 @@ if (-not (Test-Path $venvPy)) {
 & $venvPy -m pip install --upgrade pip --quiet
 
 Write-Host "[4/5] AIエンジンを構築しています... (数GBのダウンロード)" -ForegroundColor Green
+# PyTorchは動作検証済みバージョンに固定する (最新版は環境により WinError 1114 等の
+# 初期化不具合が報告されるため、開発環境で確認した 2.11.0 を使う)
+$TorchVer = '2.11.0'
 if ($hasNvidia) {
-    & $venvPy -m pip install torch --index-url https://download.pytorch.org/whl/cu128
+    & $venvPy -m pip install "torch==$TorchVer" --index-url https://download.pytorch.org/whl/cu128
 } else {
-    & $venvPy -m pip install torch
+    & $venvPy -m pip install "torch==$TorchVer"
 }
 
 # PyTorchが本当に動くか検証。失敗時は実際のエラーを表示しつつ多段修復:
 #   ① VC++ランタイム再導入 → ② CPU版PyTorchへ切り替え → ③ 案内して停止
+function Test-TorchVersion {
+    $eap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $v = (& $venvPy -m pip show torch 2>&1 | Select-String '^Version:') -replace 'Version:\s*', ''
+    $ErrorActionPreference = $eap
+    return "$v".Trim()
+}
+
 function Test-TorchImport {
     $eap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
@@ -127,25 +138,43 @@ $torchOut = Test-TorchImport
 if ($torchOut -notmatch 'torch-ok') {
     Write-Host "PyTorchの動作確認に失敗しました。エラー内容:" -ForegroundColor Yellow
     Write-Host $torchOut.Trim() -ForegroundColor DarkGray
-    Write-Host "修復 (1/2): Visual C++ ランタイムを再インストールします..." -ForegroundColor Yellow
+    # 修復 (1/3): 過去に入った未検証バージョンを、検証済みバージョンへ入れ替える
+    $curVer = (Test-TorchVersion)
+    if ($curVer -and $curVer -ne $TorchVer) {
+        Write-Host "修復 (1/3): PyTorch $curVer を検証済みの $TorchVer に入れ替えます..." -ForegroundColor Yellow
+        & $venvPy -m pip uninstall -y torch | Out-Null
+        if ($hasNvidia) {
+            & $venvPy -m pip install "torch==$TorchVer" --index-url https://download.pytorch.org/whl/cu128
+        } else {
+            & $venvPy -m pip install "torch==$TorchVer"
+        }
+        $torchOut = Test-TorchImport
+    }
+}
+if ($torchOut -notmatch 'torch-ok') {
+    Write-Host "修復 (2/3): Visual C++ ランタイムを再インストールします..." -ForegroundColor Yellow
     if ($hasWinget) {
         winget install -e --id Microsoft.VCRedist.2015+.x64 --accept-source-agreements --accept-package-agreements --force | Out-Null
     }
     $torchOut = Test-TorchImport
 }
 if ($torchOut -notmatch 'torch-ok') {
-    Write-Host "修復 (2/2): CPU版PyTorchに切り替えて再試行します... (生成は少し遅くなりますが確実に動きます)" -ForegroundColor Yellow
+    Write-Host "修復 (3/3): CPU版PyTorchに切り替えて再試行します... (生成は少し遅くなりますが確実に動きます)" -ForegroundColor Yellow
     & $venvPy -m pip uninstall -y torch | Out-Null
-    & $venvPy -m pip install torch
+    & $venvPy -m pip install "torch==$TorchVer"
     $torchOut = Test-TorchImport
 }
 if ($torchOut -notmatch 'torch-ok') {
     throw ("PyTorchを起動できませんでした。エラー内容:`n" + $torchOut.Trim() + "`n`n" +
-           "次を手動でインストールしてから再実行してください:`n" +
-           "  Microsoft Visual C++ 再頒布可能パッケージ (x64)`n" +
-           "  https://aka.ms/vs/17/release/vc_redist.x64.exe")
+           "確認事項 (上から順にお試しください):`n" +
+           "  1. Visual C++ 再頒布可能パッケージ (x64) を手動インストール:`n" +
+           "     https://aka.ms/vs/17/release/vc_redist.x64.exe`n" +
+           "  2. Windows Update を最新にして再起動`n" +
+           "  3. 仮想メモリ (ページファイル) が無効になっていれば有効化`n" +
+           "  4. NVIDIAドライバを最新に更新`n" +
+           "その後もう一度このセットアップを実行してください (続きから再開します)。")
 }
-Write-Host "PyTorch: OK" -ForegroundColor Green
+Write-Host "PyTorch: OK ($TorchVer)" -ForegroundColor Green
 
 $ardyRepo = Join-Path $EngineRoot 'ardy'
 if (-not (Test-Path "$ardyRepo\setup.py")) {
