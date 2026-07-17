@@ -69,7 +69,29 @@ from ardy.tools import seed_everything, to_numpy  # noqa: E402
 from retarget import spec_from_arrays  # noqa: E402
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-model = load_model(ARGS.model, device=DEVICE)
+
+# ardy側の load_text_encoder は最後に .to(model_device) するため、そのままだと
+# TEXT_ENCODER_DEVICE=cpu の指定が上書きされる (8Bエンコーダが VRAM ~15GB を占有)。
+# 指定がある場合はエンコーダを先に目的デバイスで構築して load_model に渡す
+_enc_dev = os.environ.get("TEXT_ENCODER_DEVICE", "").strip().lower()
+_pre_encoder = None
+if _enc_dev:
+    try:
+        from ardy.model.load_model import load_text_encoder
+        _pre_encoder = load_text_encoder(device=_enc_dev)
+    except (ImportError, AttributeError):
+        _pre_encoder = None  # 旧版ardy: 下の保険で移動する
+
+if _pre_encoder is not None:
+    model = load_model(ARGS.model, device=DEVICE, text_encoder=_pre_encoder)
+else:
+    model = load_model(ARGS.model, device=DEVICE)
+
+# 保険: それでもエンコーダが指定と違うデバイスに居たら移し直す
+if _enc_dev and getattr(model, "text_encoder", None) is not None:
+    model.text_encoder.to(_enc_dev)
+    if DEVICE.startswith("cuda") and _enc_dev == "cpu":
+        torch.cuda.empty_cache()
 FPS = model.motion_rep.fps
 PATCH = model.num_frames_per_token
 NUM_BASE_STEPS = int(model.diffusion.num_base_steps)
