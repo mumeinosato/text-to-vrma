@@ -112,7 +112,7 @@ bash tools/ardy-engine/install_mac.sh
 
 macOSでHomebrewが未導入の場合は、セットアップ中に自動でインストールされます。
 macOS対応は [@emadurandal](https://github.com/emadurandal) さんのコントリビュート
-([#2](https://github.com/Kirakun0328/text-to-vrma/pull/2)) によるものです。ありがとうございます!
+([#2](https://github.com/Kirakun0328/text-to-vrma/pull/2)) によるものです。
 開発者による動作確認はWindowsのみです (macOSの不具合報告・修正PRを歓迎します)。
 
 完了後、エンジンを起動してからアプリの「ARDYローカルエンジン」モードを選択します。
