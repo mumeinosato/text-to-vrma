@@ -31,7 +31,7 @@
         "portable",
         "zip"
       ],
-      "artifactName": "Text-To-VRMA-v${version}-win.${ext}"
+      "artifactName": "Text-To-VRMA_v${version}.${ext}"
     },
     "portable": {
       "artifactName": "Text-To-VRMA-v${version}.exe"
