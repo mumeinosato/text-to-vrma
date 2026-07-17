@@ -50,16 +50,21 @@ class ArdyClient {
     };
   }
 
-  /** install.ps1 を目に見えるPowerShellウィンドウで実行する (進捗をユーザーが確認できる) */
+  /** セットアップスクリプトを目に見えるターミナルで実行する (進捗をユーザーが確認できる) */
   setup() {
-    const script = path.join(this.engineDir, 'install.ps1');
+    const isMac = process.platform === 'darwin';
+    const script = path.join(this.engineDir, isMac ? 'install_mac.sh' : 'install.ps1');
     if (!fs.existsSync(script)) {
       throw new Error(`セットアップスクリプトが見つかりません: ${script}`);
     }
-    spawn('cmd.exe', [
-      '/c', 'start', 'ARDY Engine Setup',
-      'powershell', '-ExecutionPolicy', 'Bypass', '-File', script,
-    ], { detached: true, stdio: 'ignore' }).unref();
+    if (isMac) {
+      spawn('open', ['-a', 'Terminal', script], { detached: true, stdio: 'ignore' }).unref();
+    } else {
+      spawn('cmd.exe', [
+        '/c', 'start', 'ARDY Engine Setup',
+        'powershell', '-ExecutionPolicy', 'Bypass', '-File', script,
+      ], { detached: true, stdio: 'ignore' }).unref();
+    }
     return { started: true };
   }
 
