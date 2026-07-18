@@ -49,58 +49,101 @@ def parse_args():
 
 ARGS = parse_args()
 
-# --- モデルロード (プロセスで1回) ---
-print("loading ARDY model... (first time: 1-2 min)", flush=True)
-import torch  # noqa: E402
-
-if ARGS.merged_base:
-    lm = importlib.import_module("ardy.model.load_model")
-    lm.TEXT_ENCODER_PRESETS["llm2vec"]["kwargs"]["base_model_name_or_path"] = ARGS.merged_base
-
-import numpy as np  # noqa: E402
-from scipy.spatial.transform import Rotation as SciRot  # noqa: E402
-
-from ardy.constraints import Root2DConstraintSet  # noqa: E402
-from ardy.model import load_model  # noqa: E402
-from ardy.postprocess import post_process_motion  # noqa: E402
-from ardy.skeleton.kinematics import fk  # noqa: E402
-from ardy.tools import seed_everything, to_numpy  # noqa: E402
-
-from retarget import spec_from_arrays  # noqa: E402
-
-DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-
-# ardy側の load_text_encoder は最後に .to(model_device) するため、そのままだと
-# TEXT_ENCODER_DEVICE=cpu の指定が上書きされる (8Bエンコーダが VRAM ~15GB を占有)。
-# 指定がある場合はエンコーダを先に目的デバイスで構築して load_model に渡す
-_enc_dev = os.environ.get("TEXT_ENCODER_DEVICE", "").strip().lower()
-_pre_encoder = None
-if _enc_dev:
-    try:
-        from ardy.model.load_model import load_text_encoder
-        _pre_encoder = load_text_encoder(device=_enc_dev)
-    except (ImportError, AttributeError):
-        _pre_encoder = None  # 旧版ardy: 下の保険で移動する
-
-if _pre_encoder is not None:
-    model = load_model(ARGS.model, device=DEVICE, text_encoder=_pre_encoder)
-else:
-    model = load_model(ARGS.model, device=DEVICE)
-
-# 保険: それでもエンコーダが指定と違うデバイスに居たら移し直す
-if _enc_dev and getattr(model, "text_encoder", None) is not None:
-    model.text_encoder.to(_enc_dev)
-    if DEVICE.startswith("cuda") and _enc_dev == "cpu":
-        torch.cuda.empty_cache()
-FPS = model.motion_rep.fps
-PATCH = model.num_frames_per_token
-NUM_BASE_STEPS = int(model.diffusion.num_base_steps)
-# 履歴上限 (訓練10秒窓 - ホライズン)。実際の履歴長は --history (既定40) で制御
-_max_window = (int(10 * FPS) // PATCH) * PATCH
-_history_cap = ((_max_window - model.gen_horizon_len) // PATCH) * PATCH
-HISTORY = max(PATCH, min(_history_cap, (ARGS.history // PATCH) * PATCH))
+# --- 起動状態 ---
+# モデル読み込みは _boot() が別スレッドで行う。これによりサーバーは起動直後から
+# HTTPで応答でき、GET /health が読み込み進捗 (%) を返せる
+BOOT = {"ready": False, "stage": "libs", "fraction": 0.01, "error": None}
 GEN_LOCK = threading.Lock()
-print(f"ready: {ARGS.model} on {DEVICE} ({FPS} fps)", flush=True)
+
+
+def _watch_encoder_rss(start_frac, end_frac, expected_bytes):
+    """エンコーダ読み込み中、プロセスのメモリ増加量から実進捗を推定してBOOTに反映する"""
+    def run():
+        try:
+            import psutil
+            proc = psutil.Process()
+            base = proc.memory_info().rss
+            while BOOT["stage"] == "encoder":
+                grown = proc.memory_info().rss - base
+                frac = start_frac + (end_frac - start_frac) * min(1.0, max(0.0, grown / expected_bytes))
+                BOOT["fraction"] = max(BOOT["fraction"], min(frac, end_frac - 0.01))
+                time.sleep(1)
+        except Exception:  # noqa: BLE001 (psutil無し等でも起動は続行)
+            pass
+    threading.Thread(target=run, daemon=True).start()
+
+
+def _boot():
+    """重いimportとモデル読み込み (プロセスで1回)。進捗は BOOT → GET /health で見える"""
+    global torch, np, SciRot, Root2DConstraintSet, load_model, post_process_motion
+    global fk, seed_everything, to_numpy, spec_from_arrays
+    global DEVICE, model, FPS, PATCH, NUM_BASE_STEPS, HISTORY, _max_window
+    try:
+        print("loading ARDY model... (first time: 1-2 min)", flush=True)
+        import torch
+
+        if ARGS.merged_base:
+            lm = importlib.import_module("ardy.model.load_model")
+            lm.TEXT_ENCODER_PRESETS["llm2vec"]["kwargs"]["base_model_name_or_path"] = ARGS.merged_base
+
+        import numpy as np
+        from scipy.spatial.transform import Rotation as SciRot
+
+        from ardy.constraints import Root2DConstraintSet
+        from ardy.model import load_model
+        from ardy.postprocess import post_process_motion
+        from ardy.skeleton.kinematics import fk
+        from ardy.tools import seed_everything, to_numpy
+
+        from retarget import spec_from_arrays
+
+        DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+        # ardy側の load_text_encoder は最後に .to(model_device) するため、そのままだと
+        # TEXT_ENCODER_DEVICE=cpu の指定が上書きされる (8Bエンコーダが VRAM ~15GB を占有)。
+        # 指定がある場合はエンコーダを先に目的デバイスで構築して load_model に渡す
+        BOOT["stage"] = "encoder"
+        BOOT["fraction"] = 0.05
+        _watch_encoder_rss(0.05, 0.80, 17 * 1024 ** 3)  # 8Bエンコーダ ≒ 16GB
+        _enc_dev = os.environ.get("TEXT_ENCODER_DEVICE", "").strip().lower()
+        _pre_encoder = None
+        if _enc_dev:
+            try:
+                from ardy.model.load_model import load_text_encoder
+                _pre_encoder = load_text_encoder(device=_enc_dev)
+            except (ImportError, AttributeError):
+                _pre_encoder = None  # 旧版ardy: 下の保険で移動する
+
+        BOOT["stage"] = "ardy"
+        BOOT["fraction"] = max(BOOT["fraction"], 0.82)
+        if _pre_encoder is not None:
+            model = load_model(ARGS.model, device=DEVICE, text_encoder=_pre_encoder)
+        else:
+            model = load_model(ARGS.model, device=DEVICE)
+
+        # 保険: それでもエンコーダが指定と違うデバイスに居たら移し直す
+        if _enc_dev and getattr(model, "text_encoder", None) is not None:
+            model.text_encoder.to(_enc_dev)
+            if DEVICE.startswith("cuda") and _enc_dev == "cpu":
+                torch.cuda.empty_cache()
+        FPS = model.motion_rep.fps
+        PATCH = model.num_frames_per_token
+        NUM_BASE_STEPS = int(model.diffusion.num_base_steps)
+        # 履歴上限 (訓練10秒窓 - ホライズン)。実際の履歴長は --history (既定40) で制御
+        _max_window = (int(10 * FPS) // PATCH) * PATCH
+        _history_cap = ((_max_window - model.gen_horizon_len) // PATCH) * PATCH
+        HISTORY = max(PATCH, min(_history_cap, (ARGS.history // PATCH) * PATCH))
+        BOOT["stage"] = "ready"
+        BOOT["fraction"] = 1.0
+        BOOT["ready"] = True
+        print(f"ready: {ARGS.model} on {DEVICE} ({FPS} fps)", flush=True)
+        # 翻訳モデルは本体の準備完了後にバックグラウンドでロードする
+        if not ARGS.no_translate:
+            threading.Thread(target=_load_translator, daemon=True).start()
+    except Exception as e:  # noqa: BLE001
+        BOOT["error"] = str(e)
+        BOOT["stage"] = "error"
+        print(f"boot failed: {e}", flush=True)
 
 # --- 日本語→英語翻訳 (FuguMT、バックグラウンドでロード) ---
 _translator = None
@@ -131,8 +174,7 @@ def _load_translator():
         print(f"translator failed to load: {e}", flush=True)
 
 
-if not ARGS.no_translate:
-    threading.Thread(target=_load_translator, daemon=True).start()
+# (翻訳モデルのロードは _boot() の完了後にバックグラウンドで開始される)
 
 
 def maybe_translate(text: str):
@@ -593,6 +635,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
+            if not BOOT["ready"]:
+                # 読み込み中: 進捗% (0〜1) と段階を返す
+                self._send(200, {
+                    "status": "error" if BOOT["error"] else "loading",
+                    "stage": BOOT["stage"],
+                    "progress": round(BOOT["fraction"], 3),
+                    "error": BOOT["error"],
+                })
+                return
             self._send(200, {
                 "status": "ok",
                 "model": ARGS.model,
@@ -620,6 +671,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error": "not found"})
 
     def do_POST(self):
+        if not BOOT["ready"]:
+            self._send(503, {"error": "loading", "progress": round(BOOT["fraction"], 3)})
+            return
         if self.path == "/generate-stream":
             self._handle_generate_stream()
             return
@@ -716,6 +770,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    # サーバーを先に立ててからモデルを読み込む (読み込み中も /health が進捗を返せる)
+    threading.Thread(target=_boot, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", ARGS.port), Handler)
     print(f"ARDY engine server listening on http://127.0.0.1:{ARGS.port}", flush=True)
     server.serve_forever()

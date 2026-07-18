@@ -129,6 +129,16 @@ async function checkArdyHealth({ showFailure = true } = {}) {
   try {
     const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(3000) });
     const info = await res.json();
+    if (info.status === 'loading') {
+      // モデル読み込み中: サーバーが返す実進捗%を表示する
+      setArdyState(t('ardy.booting', { pct: Math.round((info.progress || 0) * 100) }), 'ok');
+      ardyStartBtn.classList.add('hidden');
+      return false;
+    }
+    if (info.status === 'error') {
+      setArdyState(`❌ ${info.error || t('err.engineStart')}`, 'err');
+      return false;
+    }
     if (info.status !== 'ok') throw new Error('unexpected response');
     const ja = info.translator === 'ready' ? t('ardy.jaOK') : '';
     setArdyState(t('ardy.connected', { model: info.model, device: info.device === 'cpu' ? 'CPU' : 'GPU', ja }), 'ok');
