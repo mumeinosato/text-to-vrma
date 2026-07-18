@@ -6,6 +6,7 @@
 const LOCALES = {
   ja: {
     'btn.engineSetup': '⬇ エンジンをセットアップ (初回のみ)',
+    'btn.engineResetup': '🔧 再セットアップ (修復)',
     'ardy.notInstalled': '❌ ARDYエンジンが未導入です。下のボタンからセットアップできます。',
     'ardy.setupConfirm': 'ARDYエンジンをセットアップしますか？\n\n・約20GBをダウンロードします (回線により30分〜1時間程度)\n・PowerShellウィンドウが開き、進捗が表示されます\n・Python / Git が無い場合は自動でインストールされます\n・空きディスク35GB以上・メモリ16GB以上を推奨',
     'ardy.setupStarted': '⏳ セットアップ用ウィンドウが開きました。完了すると自動でここに反映されます。',
@@ -130,6 +131,7 @@ const LOCALES = {
   },
   en: {
     'btn.engineSetup': '⬇ Set up engine (first time only)',
+    'btn.engineResetup': '🔧 Re-run setup (repair)',
     'ardy.notInstalled': '❌ ARDY engine is not installed. Use the button below to set it up.',
     'ardy.setupConfirm': 'Set up the ARDY engine?\n\n- Downloads about 20GB (30-60 min depending on connection)\n- A PowerShell window will open and show progress\n- Python / Git are installed automatically if missing\n- 35GB+ free disk and 16GB+ RAM recommended',
     'ardy.setupStarted': '⏳ Setup window opened. This panel will update automatically when it finishes.',
@@ -253,6 +255,7 @@ const LOCALES = {
   },
   zh: {
     'btn.engineSetup': '⬇ 安装引擎 (仅首次)',
+    'btn.engineResetup': '🔧 重新安装 (修复)',
     'ardy.notInstalled': '❌ 尚未安装ARDY引擎。可通过下方按钮安装。',
     'ardy.setupConfirm': '要安装ARDY引擎吗？\n\n- 将下载约20GB (视网络30〜60分钟)\n- 会打开PowerShell窗口显示进度\n- 如缺少Python / Git将自动安装\n- 建议磁盘剩余35GB以上、内存16GB以上',
     'ardy.setupStarted': '⏳ 安装窗口已打开。完成后将自动反映在此面板。',
@@ -376,6 +379,7 @@ const LOCALES = {
   },
   ko: {
     'btn.engineSetup': '⬇ 엔진 설치 (최초 1회)',
+    'btn.engineResetup': '🔧 재설치 (복구)',
     'ardy.notInstalled': '❌ ARDY 엔진이 설치되지 않았습니다. 아래 버튼으로 설치할 수 있습니다.',
     'ardy.setupConfirm': 'ARDY 엔진을 설치하시겠습니까?\n\n- 약 20GB를 다운로드합니다 (회선에 따라 30〜60분)\n- PowerShell 창이 열리고 진행 상황이 표시됩니다\n- Python / Git이 없으면 자동으로 설치됩니다\n- 디스크 여유 35GB 이상, 메모리 16GB 이상 권장',
     'ardy.setupStarted': '⏳ 설치 창이 열렸습니다. 완료되면 자동으로 여기에 반영됩니다.',

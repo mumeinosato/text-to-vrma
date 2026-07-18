@@ -33,6 +33,7 @@ const ardySettings = $('ardySettings');
 const ardyState = $('ardyState');
 const ardyUrlInput = $('ardyUrl');
 const ardyStartBtn = $('ardyStartBtn');
+const ardySetupBtn = $('ardySetupBtn');
 const genProgress = $('genProgress');
 const genProgressBar = $('genProgressBar');
 const genProgressText = $('genProgressText');
@@ -133,6 +134,7 @@ async function checkArdyHealth({ showFailure = true } = {}) {
       // モデル読み込み中: サーバーが返す実進捗%を表示する
       setArdyState(t('ardy.booting', { pct: Math.round((info.progress || 0) * 100) }), 'ok');
       ardyStartBtn.classList.add('hidden');
+      ardySetupBtn.classList.add('hidden');
       return false;
     }
     if (info.status === 'error') {
@@ -143,6 +145,7 @@ async function checkArdyHealth({ showFailure = true } = {}) {
     const ja = info.translator === 'ready' ? t('ardy.jaOK') : '';
     setArdyState(t('ardy.connected', { model: info.model, device: info.device === 'cpu' ? 'CPU' : 'GPU', ja }), 'ok');
     ardyStartBtn.classList.add('hidden');
+    ardySetupBtn.classList.add('hidden');
     return true;
   } catch {
     // 起動待ちのポーリング中は、モデル初期化中の接続失敗で
@@ -152,9 +155,12 @@ async function checkArdyHealth({ showFailure = true } = {}) {
       // 未セットアップならボタンを「セットアップ」に切り替える (JSONを触らせない)
       const st = await window.ardyBridge.getStatus().catch(() => null);
       const configured = Boolean(st?.configured);
-      ardyStartBtn.textContent = configured ? t('btn.engineStart') : t('btn.engineSetup');
+      ardyStartBtn.textContent = t('btn.engineStart');
       ardyStartBtn.dataset.mode = configured ? 'start' : 'setup';
       ardyStartBtn.classList.remove('hidden');
+      // セットアップボタンは常設 (導入済みなら「再セットアップ」として途中失敗からの修復に使える)
+      ardySetupBtn.textContent = configured ? t('btn.engineResetup') : t('btn.engineSetup');
+      ardySetupBtn.classList.remove('hidden');
       setArdyState(
         configured ? t('ardy.notRunning', { hint: t('ardy.hintStartBtn') }) : t('ardy.notInstalled'),
         'err'
@@ -162,6 +168,7 @@ async function checkArdyHealth({ showFailure = true } = {}) {
     } else {
       setArdyState(t('ardy.notRunning', { hint: t('ardy.hintManual') }), 'err');
       ardyStartBtn.classList.add('hidden');
+      ardySetupBtn.classList.add('hidden');
     }
     return false;
   }
@@ -196,6 +203,7 @@ async function refreshArdyConfigured() {
     ardyStartBtn.textContent = t('btn.engineStart');
     ardyStartBtn.dataset.mode = 'start';
     ardyStartBtn.classList.remove('hidden');
+    ardySetupBtn.textContent = t('btn.engineResetup');
     setArdyState(t('ardy.setupDone'), 'ok');
   }
 }
@@ -814,6 +822,10 @@ waypointClearBtn.addEventListener('click', () => {
   updateWaypointUI();
   setStatus(t('wp.cleared'), 'ok');
 });
+ardySetupBtn.addEventListener('click', () => {
+  setupArdyEngine();
+});
+
 ardyStartBtn.addEventListener('click', () => {
   if (ardyStartBtn.dataset.mode === 'setup') {
     setupArdyEngine();
