@@ -285,18 +285,44 @@ if ($SetupTestOnly) {
 $ardyRepo = Join-Path $EngineRoot 'ardy'
 if (-not (Test-Path "$ardyRepo\setup.py")) {
     & $git clone --depth 1 https://github.com/nv-tlabs/ardy.git $ardyRepo
+    if ($LASTEXITCODE -ne 0) { throw "ARDYリポジトリの取得に失敗しました。ネットワークを確認して再実行してください。" }
 }
 & $venvPy -m pip install cmake sentencepiece --quiet
 Push-Location $ardyRepo
 & $venvPy -m pip install -e .
+$ardyInstallCode = $LASTEXITCODE
 Pop-Location
+if ($ardyInstallCode -ne 0) { throw "ARDY本体のインストールに失敗しました。上のエラー内容を確認して再実行してください。" }
 
 Write-Host "[5/5] モデルをダウンロードしています... (約20GB。ここが一番時間がかかります)" -ForegroundColor Green
 & $venvPy -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='nvidia/ARDY-Core-RP-20FPS-Horizon40')"
+if ($LASTEXITCODE -ne 0) { throw "ARDYモデルのダウンロードに失敗しました。ネットワークとディスク空き容量を確認して再実行してください。" }
 
+# テキストエンコーダーの構築。完了マーカーで成否を管理する:
+# フォルダやmodel.safetensorsの存在だけで判定すると、ディスク不足等で
+# 書きかけのまま失敗したものを「構築済み」と誤認してしまう
 $mergedBase = Join-Path $EngineRoot 'llm2vec-base-merged'
-if (-not (Test-Path "$mergedBase\model.safetensors")) {
+$mergedMarker = Join-Path $mergedBase 'build-complete.marker'
+if ((Test-Path $mergedBase) -and -not (Test-Path $mergedMarker)) {
+    Write-Host "前回のモデル構築が途中で終わっているため、作り直します..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force $mergedBase
+}
+if (-not (Test-Path $mergedMarker)) {
+    # 空き容量の事前チェック (元モデル約16GB + 統合済み約16GB + 作業領域)
+    $driveName = (Split-Path -Qualifier $EngineRoot).TrimEnd(':')
+    $freeGB = [math]::Round((Get-PSDrive -Name $driveName).Free / 1GB, 1)
+    if ($freeGB -lt 20) {
+        $msg = "${driveName}ドライブの空き容量が不足しています (現在 ${freeGB}GB)。モデルの構築には最低20GB、" +
+               "初回ダウンロードも含めると約40GBの空きが必要です。不要なファイルを削除してから再実行してください。"
+        throw $msg
+    } elseif ($freeGB -lt 40) {
+        Write-Host "注意: 空き容量が少なめです (${freeGB}GB)。初回はモデルのダウンロードも含めて約40GB使用します。" -ForegroundColor Yellow
+    }
     & $venvPy (Join-Path $ScriptDir 'build_text_encoder.py') --out $mergedBase
+    if ($LASTEXITCODE -ne 0) {
+        throw "テキストエンコーダーの構築に失敗しました。上のエラー内容と、ディスク空き容量 (推奨40GB以上) を確認して再実行してください。"
+    }
+    New-Item -ItemType File -Path $mergedMarker -Force | Out-Null
 }
 
 # --- 5. アプリ用設定ファイル ---
