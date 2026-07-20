@@ -1,26 +1,6 @@
-node_modules/
-dist/
-release/
-*.local
-
-# サードパーティのVRMモデルは再配布規約があるためコミットしない
-# 例外: VRoid公式サンプル (無償再配布可 — README参照)
-public/models/*.vrm
-!public/models/AvatarSample_VRM1.0.vrm
-!public/models/AvatarSample_VRM0.0.vrm
-
-# エディタ / OS
+# Godot 4+ specific ignores
+.godot/
+/android/
+text-to-vrma-js/
+build/
 .vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# デモ動画の原本はコミットしない (README は GIF を使用)
-video/*.mp4
-
-# Claude Code ローカル設定
-.claude/
-
-# Python
-__pycache__/
-*.pyc

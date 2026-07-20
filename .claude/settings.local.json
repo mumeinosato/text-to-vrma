@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"/d/Programs/Godot/Godot_v4.7.1-stable_win64_console.exe\" --headless --path . --quit-after 2)",
+      "Bash(\"/d/Programs/Godot/Godot_v4.7.1-stable_win64_console.exe\" --headless --path . --editor --quit-after 5)",
+      "Bash(\"/d/Programs/Godot/Godot_v4.7.1-stable_win64_console.exe\" --headless --path . --quit-after 3)",
+      "Bash(\"/d/Programs/Godot/Godot_v4.7.1-stable_win64_console.exe\" --headless --path . --quit-after 5)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(\"/d/Programs/Godot/Godot_v4.7.1-stable_win64_console.exe\" --headless --path . --quit-after 10)",
+      "Read(//tmp/**)",
+      "Bash(\"/d/Programs/Godot/Godot_v4.7.1-stable_win64_console.exe\" --headless --path . --rendering-driver opengl3)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(/d/Programs/Godot/Godot_v4.7.1-stable_win64_console.exe *)",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "Bash(xxd)",
+      "WebSearch",
+      "Bash(gh api *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(rm -f .godot/imported/AvatarSample_VRM0.0.vrm-*.scn .godot/imported/AvatarSample_VRM0.0.vrm-*.md5)",
+      "Bash(rm -f .godot/imported/AvatarSample_VRM1.0.vrm-*.scn .godot/imported/AvatarSample_VRM1.0.vrm-*.md5)",
+      "Bash(where godot *)",
+      "Bash(where godot4 *)",
+      "Read(//d//**)"
+    ]
+  }
+}

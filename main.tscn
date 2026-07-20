@@ -1,0 +1,149 @@
+[gd_scene format=3 uid="uid://by2xdgoapw6ti"]
+
+[ext_resource type="Script" uid="uid://8rwj77i5gc0e" path="res://main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://c0f58krmjijo3" path="res://scripts/orbit_camera.gd" id="2_cam"]
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.102, 0.114, 0.145, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.75, 0.8, 1, 1)
+ambient_light_energy = 0.5
+tonemap_mode = 2
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_1"]
+size = Vector2(12, 12)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
+albedo_color = Color(0.145, 0.161, 0.204, 1)
+roughness = 0.9
+
+[node name="Main" type="Control" unique_id=1793306864]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="HSplit" type="HSplitContainer" parent="." unique_id=1531562360]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SidePanel" type="MarginContainer" parent="HSplit" unique_id=2038781198]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 16
+
+[node name="Content" type="VBoxContainer" parent="HSplit/SidePanel" unique_id=1811168329]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SettingsLabel" type="Label" parent="HSplit/SidePanel/Content" unique_id=1348232327]
+layout_mode = 2
+text = "API 設定"
+
+[node name="Settings" type="VBoxContainer" parent="HSplit/SidePanel/Content" unique_id=1613307779]
+layout_mode = 2
+
+[node name="BaseUrlInput" type="LineEdit" parent="HSplit/SidePanel/Content/Settings" unique_id=50611047]
+layout_mode = 2
+placeholder_text = "Base URL (例: https://api.openai.com/v1)"
+
+[node name="ApiKeyInput" type="LineEdit" parent="HSplit/SidePanel/Content/Settings" unique_id=636466616]
+layout_mode = 2
+placeholder_text = "API Key"
+secret = true
+
+[node name="ModelInput" type="LineEdit" parent="HSplit/SidePanel/Content/Settings" unique_id=1711677279]
+layout_mode = 2
+placeholder_text = "モデル名 (例: gpt-4o-mini)"
+
+[node name="HSeparator" type="HSeparator" parent="HSplit/SidePanel/Content" unique_id=717087607]
+layout_mode = 2
+
+[node name="TextInput" type="TextEdit" parent="HSplit/SidePanel/Content" unique_id=822686852]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+placeholder_text = "動きの説明を入力 (例: 元気よく手を振る)"
+
+[node name="OptionsRow" type="HBoxContainer" parent="HSplit/SidePanel/Content" unique_id=1148158103]
+layout_mode = 2
+
+[node name="RefineCheck" type="CheckBox" parent="HSplit/SidePanel/Content/OptionsRow" unique_id=1514592655]
+layout_mode = 2
+button_pressed = true
+text = "自己修正 (2パス)"
+
+[node name="LoopOption" type="OptionButton" parent="HSplit/SidePanel/Content" unique_id=1398898749]
+layout_mode = 2
+
+[node name="GenerateBtn" type="Button" parent="HSplit/SidePanel/Content" unique_id=2050118482]
+layout_mode = 2
+text = "生成"
+
+[node name="VrmButton" type="Button" parent="HSplit/SidePanel/Content" unique_id=1116180238]
+layout_mode = 2
+text = "VRMを変更..."
+
+[node name="StatusLabel" type="Label" parent="HSplit/SidePanel/Content" unique_id=835379390]
+layout_mode = 2
+text = "読み込み中..."
+autowrap_mode = 3
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="HSplit" unique_id=1910523735]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="HSplit/ViewportContainer" unique_id=755678009]
+handle_input_locally = false
+size = Vector2i(820, 648)
+render_target_update_mode = 4
+
+[node name="World" type="Node3D" parent="HSplit/ViewportContainer/SubViewport" unique_id=2066909311]
+
+[node name="CameraRig" type="Node3D" parent="HSplit/ViewportContainer/SubViewport/World" unique_id=530827708]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+script = ExtResource("2_cam")
+
+[node name="Camera3D" type="Camera3D" parent="HSplit/ViewportContainer/SubViewport/World/CameraRig" unique_id=769528574]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
+current = true
+fov = 35.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="HSplit/ViewportContainer/SubViewport/World" unique_id=268231056]
+transform = Transform3D(0.866, 0.216, -0.45, 0, 0.9, 0.434, 0.5, -0.376, 0.779, 1.5, 3, 2)
+visible = false
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="HSplit/ViewportContainer/SubViewport/World" unique_id=1284435916]
+environment = SubResource("Environment_1")
+
+[node name="Floor" type="MeshInstance3D" parent="HSplit/ViewportContainer/SubViewport/World" unique_id=1680356047]
+visible = false
+mesh = SubResource("PlaneMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="VrmRoot" type="Node3D" parent="HSplit/ViewportContainer/SubViewport/World" unique_id=1263797873]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.32792956, 0)
+
+[node name="VrmFileDialog" type="FileDialog" parent="." unique_id=1743256350]
+title = "Open a File"
+size = Vector2i(600, 400)
+ok_button_text = "開く"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.vrm ; VRM Files")
