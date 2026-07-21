@@ -29,12 +29,24 @@ signal load_failed(message: String)
 const _BoneRenamerHumanoid = preload("res://addons/vrm/importer/common/vrm_bone_renamer_humanoid.gd")
 const _BoneRenamer = preload("res://addons/vrm/importer/common/vrm_bone_renamer.gd")
 
+# VRM0 の presetName -> VRM1 の表情名 (VRMC_vrm_animation 準拠) への変換表。
+# 参考: addons/vrm/importer/common/animation/vrm_animation_constants.gd の vrm0_to_vrm1_presets
+const _VRM0_PRESET_TO_VRM1 := {
+	"joy": "happy", "angry": "angry", "sorrow": "sad", "fun": "relaxed",
+	"a": "aa", "i": "ih", "u": "ou", "e": "ee", "o": "oh",
+	"blink": "blink", "blink_l": "blinkLeft", "blink_r": "blinkRight",
+	"neutral": "neutral",
+}
+
+var _last_expression_map: Dictionary = {}
+
 
 func load_into(parent: Node3D, path: String) -> Dictionary:
-	## Returns { root, skeleton, anim_player } or empty on failure.
+	## Returns { root, skeleton, anim_player, expression_map } or empty on failure.
 	for child in parent.get_children():
 		child.queue_free()
 
+	_last_expression_map = {}
 	var root: Node = _load_runtime(path)
 
 	if root == null:
@@ -51,7 +63,12 @@ func load_into(parent: Node3D, path: String) -> Dictionary:
 		anim_player = AnimationPlayer.new()
 		anim_player.name = "AnimationPlayer"
 		root.add_child(anim_player)
-	return {"root": root, "skeleton": skeleton, "anim_player": anim_player}
+	return {
+		"root": root,
+		"skeleton": skeleton,
+		"anim_player": anim_player,
+		"expression_map": _last_expression_map,
+	}
 
 
 func _load_runtime(path: String) -> Node:
@@ -100,6 +117,8 @@ func _convert_to_humanoid(root: Node, gstate: GLTFState) -> void:
 	if not is_vrm0 and root is Node3D:
 		(root as Node3D).rotation.y = PI
 
+	_last_expression_map = _extract_expression_map(root, gstate, extensions, is_vrm0)
+
 
 func _extract_human_bone_map(extensions: Dictionary, is_vrm0: bool) -> Dictionary:
 	## humanBone名 (VRM規約: hips, leftUpperArm ...) → glTFノードindex の辞書を返す。
@@ -119,6 +138,109 @@ func _extract_human_bone_map(extensions: Dictionary, is_vrm0: bool) -> Dictionar
 			if entry is Dictionary and entry.has("node"):
 				out[bone_name] = int(entry["node"])
 	return out
+
+
+func _extract_expression_map(root: Node, gstate: GLTFState, extensions: Dictionary, is_vrm0: bool) -> Dictionary:
+	## 表情名 (VRM1規約: happy, blink ...) -> [{ mesh: MeshInstance3D, index: int, weight: float }, ...] の辞書を返す。
+	## モーフターゲットの bind のみを対象にする (マテリアル切り替え等は非対応)。
+	var map := {}
+	if is_vrm0:
+		var vrm: Dictionary = extensions.get("VRM", {})
+		var blend_master: Dictionary = vrm.get("blendShapeMaster", {})
+		var groups: Array = blend_master.get("blendShapeGroups", [])
+		if groups.is_empty():
+			return map
+		var mesh_idx_to_node_idx := {}
+		var nodes_json: Array = gstate.json.get("nodes", [])
+		for i in range(nodes_json.size()):
+			var n = nodes_json[i]
+			if n is Dictionary and n.has("mesh"):
+				var mesh_idx := int(n["mesh"])
+				if not mesh_idx_to_node_idx.has(mesh_idx):
+					mesh_idx_to_node_idx[mesh_idx] = i
+		for group in groups:
+			if not (group is Dictionary):
+				continue
+			var expr_name := _vrm0_expression_name(group)
+			if expr_name.is_empty():
+				continue
+			var entries := _collect_binds(
+				root, gstate, group.get("binds", []), "mesh", mesh_idx_to_node_idx, 100.0
+			)
+			if not entries.is_empty():
+				map[expr_name] = entries
+	else:
+		var vrmc: Dictionary = extensions.get("VRMC_vrm", {})
+		var expr_ext: Dictionary = vrmc.get("expressions", {})
+		var all_groups := {}
+		for expr_name in (expr_ext.get("preset", {}) as Dictionary).keys():
+			all_groups[expr_name] = expr_ext["preset"][expr_name]
+		for expr_name in (expr_ext.get("custom", {}) as Dictionary).keys():
+			all_groups[expr_name] = expr_ext["custom"][expr_name]
+		for expr_name in all_groups.keys():
+			var group = all_groups[expr_name]
+			if not (group is Dictionary):
+				continue
+			var entries := _collect_binds(
+				root, gstate, group.get("morphTargetBinds", []), "node", {}, 1.0
+			)
+			if not entries.is_empty():
+				map[expr_name] = entries
+	return map
+
+
+func _vrm0_expression_name(group: Dictionary) -> String:
+	var preset_name := str(group.get("presetName", ""))
+	if preset_name != "unknown":
+		return _VRM0_PRESET_TO_VRM1.get(preset_name, "")
+	# VRM0 には標準の "surprised" プリセットが無く、対応するモデルは custom (unknown) 名で
+	# 積んでいることが多い (例: "Surprised")。大文字小文字を無視して既知の表情名に正規化する。
+	var custom_name := str(group.get("name", ""))
+	for canonical in MotionSpecParser.EXPRESSION_PRESETS:
+		if canonical.to_lower() == custom_name.to_lower():
+			return canonical
+	return custom_name
+
+
+## binds: VRM0 は {mesh: meshIndex, index, weight(0-100)}、VRM1 は {node: nodeIndex, index, weight(0-1)}。
+## key_field でどちらの参照方式かを切り替え、node_lookup (VRM0 のみ) で mesh index -> node index を引く。
+##
+## ノードの解決は GLTFState.get_scene_node() を使わない。ボーンリネーム等でシーンツリーが
+## 変更された後だと解決に失敗することがあるため、代わりに元の glTF ノード名 (rename の影響を
+## 受けないメッシュノード名) でシーンツリーを名前検索する (アドオンの rename_bones と同じ考え方)。
+func _collect_binds(
+	root: Node, gstate: GLTFState, binds: Array, key_field: String, node_lookup: Dictionary, weight_scale: float
+) -> Array:
+	var entries := []
+	var gltf_nodes: Array = gstate.nodes
+	for b in binds:
+		if not (b is Dictionary):
+			continue
+		var node_idx := -1
+		if key_field == "mesh":
+			var mesh_idx := int(b.get("mesh", -1))
+			if not node_lookup.has(mesh_idx):
+				continue
+			node_idx = int(node_lookup[mesh_idx])
+		else:
+			node_idx = int(b.get("node", -1))
+		if node_idx < 0 or node_idx >= gltf_nodes.size():
+			continue
+		var node_name: String = (gltf_nodes[node_idx] as GLTFNode).resource_name
+		if node_name.is_empty():
+			continue
+		var scene_node: Node = root.find_child(node_name, true, false)
+		if not (scene_node is MeshInstance3D):
+			continue
+		var shape_idx := int(b.get("index", -1))
+		if shape_idx < 0:
+			continue
+		entries.append({
+			"mesh": scene_node,
+			"index": shape_idx,
+			"weight": float(b.get("weight", weight_scale)) / weight_scale,
+		})
+	return entries
 
 
 func _find_skeleton(node: Node) -> Skeleton3D:
